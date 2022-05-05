@@ -40,7 +40,7 @@ class M1(Monitor):
         def transition(self, event):
             match event:
                 case Acquire(thread, self.lock) if thread != self.thread:
-                    return error('lock acquired by other thread')
+                    return error('double acquisition')
                 case Release(self.thread, self.lock):
                     return ok
 
@@ -64,7 +64,7 @@ class M1Expanded(Monitor):
         def transition(self, event):
             match event:
                 case Acquire(thread, self.lock) if thread != self.thread:
-                    return error('lock acquired by other thread')
+                    return error('double acquisition')
                 case Release(self.thread, self.lock):
                     return ok
 
@@ -74,18 +74,24 @@ class M2(Monitor):
     Use of facts, counting.
     """
 
-    def __init__(self):
+    def __init__(self, limit: int):
         super().__init__()
-        self.count: int  = 0
+        self.count: int = 0
+        self.limit = limit
+
+    def __str__(self):
+        result = f'{self.count}\n'
+        result += super().__str__()
+        return result
 
     def transition(self, event):
         match event:
-            case Acquire(thread, lock):
-                if self.count < 3:
-                    self.count += 1
+            case Acquire(thread, lock) if not self.exists(lambda state: isinstance(state, M2.DoRelease) and state.lock == lock):
+                if self.monitor.count < self.limit:
+                    self.monitor.count += 1
                     return [M2.DoRelease(thread, lock), M2.DoNotFree(lock)]
                 else:
-                    return error()
+                    return error(f'limit reached, count = {self.count} ')
             case Release(thread, lock) if not M2.DoRelease(thread, lock):
                 return error(f'thread releases un-acquired or already released lock')
 
@@ -96,44 +102,10 @@ class M2(Monitor):
 
         def transition(self, event):
             match event:
-                case Acquire(thread, self.lock) if thread != self.thread:
-                    return error('lock acquired by other thread')
+                case Acquire(_, self.lock):
+                    return [error('lock acquired by other thread'), self]
                 case Release(self.thread, self.lock):
-                    self.count -= 1
-                    return ok
-
-    @data
-    class DoNotFree(State):
-        lock: int
-
-        def transition(self, event):
-            match event:
-                case Free(self.lock):
-                    return error(f'Lock released after being used')
-
-
-class M2Exists(Monitor):
-    """
-    More general predicate on states, use of `exists`
-    """
-
-    def transition(self, event):
-        match event:
-            case Acquire(thread, lock):
-                return [M2Exists.DoRelease(thread, lock), M2Exists.DoNotFree(lock)]
-            case Release(_, lock) if not self.exists(lambda state: isinstance(state, M2Exists.DoRelease) and state.lock == lock):
-                return error(f'thread releases un-acquired or already released lock')
-
-    @data
-    class DoRelease(HotState):
-        thread: str
-        lock: int
-
-        def transition(self, event):
-            match event:
-                case Acquire(thread, self.lock) if thread != self.thread:
-                    return error('lock acquired by other thread')
-                case Release(_, self.lock):
+                    self.monitor.count -= 1
                     return ok
 
     @data
@@ -191,17 +163,16 @@ if __name__ == '__main__':
         Acquire('T3', 2),  # double acquisition by other thread: bad
                                                          # missing release of lock 2 by T3: bad
     ]
-    trace2 = trace1
-    trace3 = trace1 + [
+    trace2 = trace1 + [
         Release('T3', 3),
         Free(1)
     ]
-    trace4 = [
+    trace3 = [
         Acquire('T1', 1),
         Release('T2', 1),
         Release('T2', 2),
     ]
-    trace5 = [
+    trace4 = [
         Acquire('T1', 1),
         Acquire('T1', 1),  # double acquisition by same thread: ok
         Release('T1', 1),
@@ -214,7 +185,7 @@ if __name__ == '__main__':
         Acquire('T7', 7),
         # missing release of lock 2 by T3: bad
     ]
-    trace6 = [
+    trace5 = [
         Acquire('T1', 1),
         Acquire('T2', 2),
         Release('T1', 1),
@@ -224,8 +195,8 @@ if __name__ == '__main__':
         Acquire('T5', 4),
         Acquire('T6', 5)
     ]
-    m = M2()
-    m.verify(trace1)
+    m = M2(2)
+    m.verify(trace5)
 
 
 
