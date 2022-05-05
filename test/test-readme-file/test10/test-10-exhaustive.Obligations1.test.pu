@@ -1,0 +1,17 @@
+@startuml
+state Obligations1{
+  [*] -> __Always__
+  state __Always__ #green
+  state fork_state1 <<fork>>
+  state DoComplete #yellow : cmd : str
+  state DoLog #yellow : cmd : str
+  state DoClean #yellow : cmd : str
+  __Always__ --> fork_state1 : **{'name': 'dispatch', 'cmd': cmd}**
+  fork_state1 -[dashed]-> DoComplete : \n--->\n(cmd)
+  fork_state1 -[dashed]-> DoLog : \n--->\n(cmd)
+  fork_state1 -[dashed]-> DoClean : \n--->\n(cmd)
+  DoComplete --> [*] : **{'name': 'complete', 'cmd': self.cmd}**
+  DoLog --> [*] : **{'name': 'log', 'cmd': self.cmd}**
+  DoClean --> [*] : **{'name': 'clean', 'cmd': self.cmd}**
+}
+@enduml

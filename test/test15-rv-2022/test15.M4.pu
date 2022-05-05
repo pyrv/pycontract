@@ -1,0 +1,6 @@
+@startuml
+state M4{
+  state M1
+  state M3
+}
+@enduml

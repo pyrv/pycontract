@@ -1,0 +1,11 @@
+@startuml
+state CommandExecution{
+  [*] -> Always
+  state Always #green
+  state DoComplete #yellow : time : int\ncmd : str
+  Always --> DoComplete : **Dispatch(time, cmd)**\n--->\n(time,cmd)
+  DoComplete --> [*] : **Complete(time, self.cmd)**\ntime - self.time <= 3000
+  state error #red
+  DoComplete --> error : **Complete(time, self.cmd)**\n__not__(time - self.time <= 3000)
+}
+@enduml

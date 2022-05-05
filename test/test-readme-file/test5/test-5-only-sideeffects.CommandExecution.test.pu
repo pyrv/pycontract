@@ -1,0 +1,8 @@
+@startuml
+state CommandExecution{
+  [*] -> __Always__
+  state __Always__ #green
+  __Always__ --> __Always__ : 1 **{'name': 'dispatch'}**
+  __Always__ --> __Always__ : 2 **{'name': 'complete'}**\nself.count < 0
+}
+@enduml

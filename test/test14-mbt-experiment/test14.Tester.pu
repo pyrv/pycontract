@@ -1,0 +1,30 @@
+@startuml
+state Tester{
+  [*] -> Start
+  state Start
+  state DispatchTurnOnRadio #yellow
+  state CompleteTurnOnRadio #yellow
+  state DispatchSend #yellow
+  state fork_state1 <<fork>>
+  state LogMessage #yellow
+  state SendPackages #yellow : size : str
+  state CompleteSend #yellow
+  Start --> DispatchTurnOnRadio : **'start'**
+  DispatchTurnOnRadio --> CompleteTurnOnRadio : **{'dispatch': Cmd.TURN_ON_RADIO}**
+  CompleteTurnOnRadio --> DispatchSend : **{'complete': Cmd.TURN_ON_RADIO}**
+  DispatchSend --> fork_state1 : **{'dispatch': Cmd.SEND, 'size': size}**
+  fork_state1 -[dashed]-> LogMessage
+  fork_state1 -[dashed]-> SendPackages : \n--->\n(size)
+  fork_state1 -[dashed]-> CompleteSend
+  LogMessage --> [*] : **{'evr': Evr.LOG_MESSAGE}**
+  SendPackages --> SendPackages : 1 **{'evr': Evr.SEND_PACKAGE}**\nself.size > 0\n--->\n(self.size - 1)
+  state error #red
+  SendPackages --> error : 1 **{'evr': Evr.SEND_PACKAGE}**\n__not__(self.size > 0)
+  SendPackages --> [*] : 2 **{'evr': Evr.FINISHED_SENDING}**\nself.size == 0
+  state error #red
+  SendPackages --> error : 2 **{'evr': Evr.FINISHED_SENDING}**\n__not__(self.size == 0)
+  CompleteSend --> [*] : **{'complete': Cmd.SEND}**\nself.monitor.commands_terminated == 2
+  state error #red
+  CompleteSend --> error : **{'complete': Cmd.SEND}**\n__not__(self.monitor.commands_terminated == 2)
+}
+@enduml

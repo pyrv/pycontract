@@ -1,0 +1,7 @@
+@startuml
+state Monitor2{
+  [*] -> __Always__
+  state __Always__ #green
+  __Always__ --> __Always__ : **event**\nevent == 2
+}
+@enduml

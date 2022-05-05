@@ -1,0 +1,14 @@
+@startuml
+state Auction{
+  [*] -> Always
+  state Always #green
+  state Listed : item : str\nreserve : int\nprev_bid : int
+  Always --> Listed : **List(item, reserve)**\n--->\n(item,reserve,0)
+  Listed --> Listed : 1 **Bid(self.item, amount)**\namount > self.prev_bid\n--->\n(self.item,self.reserve,amount)
+  state error #red
+  Listed --> error : 1 **Bid(self.item, amount)**\n__not__(amount > self.prev_bid)
+  Listed --> [*] : 2 **Sell(self.item)**\nself.prev_bid > self.reserve
+  state error #red
+  Listed --> error : 2 **Sell(self.item)**\n__not__(self.prev_bid > self.reserve)
+}
+@enduml

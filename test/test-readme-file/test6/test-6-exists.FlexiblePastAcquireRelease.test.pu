@@ -1,0 +1,13 @@
+@startuml
+state FlexiblePastAcquireRelease{
+  [*] -> __Always__
+  state __Always__ #green
+  state Locked #yellow : thread : str\nlock : int
+  __Always__ --> Locked : 1 **Acquire(thread, lock)**\n--->\n(thread,lock)
+  state error #red
+  __Always__ --> error : 2 **Release(_, lock)**\nnot self.exists(self.acquired(lock))
+  state error #red
+  Locked --> error : 1 **Acquire(_, self.lock)**
+  Locked --> [*] : 2 **Release(_, self.lock)**
+}
+@enduml

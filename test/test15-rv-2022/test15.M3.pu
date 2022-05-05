@@ -1,0 +1,15 @@
+@startuml
+state M3{
+  note as KEYNOTE
+   def key(self, event) -> Optional[object]:
+    match event:
+        case Acquire(_, lock) | Release(_, lock):
+            return lock
+  end note
+  [*] -> Idle
+  state "Idle **next**" as Idle
+  state "DoRelease **next**" as DoRelease #yellow : thread : str\nlock : int
+  Idle --> DoRelease : **Acquire(thread, lock)**\nself.monitor.count < 3\n--->\n(thread,lock)
+  DoRelease --> Idle : **Release(self.thread, self.lock)**
+}
+@enduml

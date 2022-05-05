@@ -1,0 +1,14 @@
+@startuml
+state AcquireRelease{
+  note as SUPER #aliceblue
+   **extends** LockMonitor
+  end note
+  [*] -> __Always__
+  state __Always__ #green
+  state Locked #yellow : thread : str\nlock : int
+  __Always__ --> Locked : **Acquire(thread, lock)**\n--->\n(thread,lock)
+  state error #red
+  Locked --> error : 1 **Acquire(_, self.lock)**
+  Locked --> [*] : 2 **ReleaseAll() | Release(self.thread, self.lock)**
+}
+@enduml

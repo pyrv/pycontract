@@ -1,0 +1,20 @@
+@startuml
+state CommandExecution{
+  [*] -> __Always__
+  state __Always__ #green
+  state fork_state1 <<fork>>
+  state DoComplete #yellow : cmd : str\nnr : int\ntime : int
+  state Executed : nr : int
+  state Dispatched : nr : int
+  __Always__ --> fork_state1 : **{'name': 'dispatch', 'cmd': cmd, 'nr': nr, 'time': time}**
+  fork_state1 -[dashed]-> DoComplete : \n--->\n(cmd,nr,time)
+  fork_state1 -[dashed]-> Dispatched : \n--->\n(nr)
+  state error #red
+  DoComplete --> error : **{'name': 'complete', 'cmd': self.cmd, 'nr': self.nr, 'time': time}**\ntime - self.time > 3000
+  DoComplete --> Executed : **{'name': 'complete', 'cmd': self.cmd, 'nr': self.nr, 'time': time}**\n__not__(time - self.time > 3000)\n--->\n(self.nr)
+  state error #red
+  Executed --> error : **{'name': 'complete', 'nr': self.nr}**
+  state error #red
+  Dispatched --> error : **{'name': 'dispatch', 'nr': self.nr}**
+}
+@enduml

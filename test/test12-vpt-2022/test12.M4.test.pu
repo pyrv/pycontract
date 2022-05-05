@@ -1,0 +1,24 @@
+@startuml
+state M4{
+  [*] -> __Always__
+  state __Always__ #green
+  state Dispatch #yellow : cmd : str\nnr : str
+  state Succeed #yellow : cmd : str\nnr : str
+  state fork_state1 <<fork>>
+  state NoMoreSuccess : cmd : str\nnr : str
+  state Close #yellow : cmd : str\nnr : str
+  __Always__ --> Dispatch : **{'name': 'command', 'cmd': c, 'nr': n, 'kind': 'FSW'}**\n--->\n(c,n)
+  Dispatch --> [*] : 1 **{'name': 'cancel', 'cmd': self.cmd, 'nr': self.nr}**
+  Dispatch --> Succeed : 2 **{'name': 'dispatch', 'cmd': self.cmd, 'nr': self.nr}**\n--->\n(self.cmd,self.nr)
+  Succeed --> fork_state1 : 1 **{'name': 'succeed', 'cmd': self.cmd, 'nr': self.nr}**
+  fork_state1 -[dashed]-> NoMoreSuccess : \n--->\n(self.cmd,self.nr)
+  fork_state1 -[dashed]-> Close : \n--->\n(self.cmd,self.nr)
+  state error #red
+  Succeed --> error : 2 **{'name': 'command', 'cmd': self.cmd, 'nr': _, 'kind': 'FSW'}**
+  state error #red
+  Succeed --> error : 3 **{'name': 'fail', 'cmd': self.cmd, 'nr': self.nr}**
+  state error #red
+  NoMoreSuccess --> error : **{'name': 'succeed', 'cmd': self.cmd, 'nr': self.nr}**
+  Close --> [*] : **{'name': 'close', 'cmd': self.cmd, 'nr': self.nr}**
+}
+@enduml

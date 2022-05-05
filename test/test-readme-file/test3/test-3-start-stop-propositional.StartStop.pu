@@ -1,0 +1,9 @@
+@startuml
+state StartStop{
+  [*] -> Ready
+  state "Ready **next**" as Ready
+  state "Running **next**" as Running #yellow
+  Ready --> Running : **Input.START**
+  Running --> Ready : **Input.STOP**
+}
+@enduml

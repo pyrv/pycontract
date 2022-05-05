@@ -1,0 +1,11 @@
+@startuml
+state AcquireRelease{
+  [*] -> Start
+  state Start #green
+  state Locked #yellow : thread : str\nlock : int
+  Start --> Locked : **Acquire(thread, lock)**\n--->\n(thread,lock)
+  state error #red
+  Locked --> error : 1 **Acquire(_, self.lock)**
+  Locked --> [*] : 2 **Release(self.thread, self.lock)**
+}
+@enduml

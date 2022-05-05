@@ -1,0 +1,13 @@
+@startuml
+state ConditionedAcquireRelease{
+  [*] -> __Always__
+  state __Always__ #green
+  state Locked #yellow : thread : str\nlock : int
+  __Always__ --> Locked : 1 **Acquire(thread, lock)**\nself.count < 3\n--->\n(thread,lock)
+  state error #red
+  __Always__ --> error : 2 **Acquire(_, _)**
+  state error #red
+  Locked --> error : 1 **Acquire(_, self.lock)**
+  Locked --> [*] : 2 **Release(self.thread, self.lock)**
+}
+@enduml

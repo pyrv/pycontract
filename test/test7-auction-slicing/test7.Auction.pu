@@ -1,0 +1,20 @@
+@startuml
+state Auction{
+  note as KEYNOTE
+   def key(self, event: Event) -> str:
+    match event:
+        case List(item, _):
+            return item
+        case Bid(item, _):
+            return item
+        case Sell(item):
+            return item
+  end note
+  [*] -> Always
+  state Always
+  state "Listed **next**" as Listed : item : str\nreserve : int\nprev_bid : int
+  Always --> Listed : **List(item, reserve)**\n--->\n(item,reserve,0)
+  Listed --> Listed : 1 **Bid(self.item, amount)**\namount > self.prev_bid\n--->\n(self.item,self.reserve,amount)
+  Listed --> [*] : 2 **Sell(self.item)**\nself.prev_bid > self.reserve
+}
+@enduml

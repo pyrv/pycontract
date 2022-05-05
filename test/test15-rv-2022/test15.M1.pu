@@ -1,0 +1,11 @@
+@startuml
+state M1{
+  [*] -> __Always__
+  state __Always__ #green
+  state DoRelease #yellow : thread : str\nlock : int
+  __Always__ --> DoRelease : **Acquire(thread, lock)**\n--->\n(thread,lock)
+  state error #red
+  DoRelease --> error : 1 **Acquire(thread, self.lock)**\nthread != self.thread
+  DoRelease --> [*] : 2 **Release(self.thread, self.lock)**
+}
+@enduml

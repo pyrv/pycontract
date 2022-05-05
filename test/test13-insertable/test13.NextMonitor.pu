@@ -1,0 +1,9 @@
+@startuml
+state NextMonitor{
+  state "Next **next**" as Next : *transitions: Tuple[DEvent\nState]
+  state NextStep
+  state error #red
+  Next --> error : **event**
+  NextStep --> [*] : **event**
+}
+@enduml

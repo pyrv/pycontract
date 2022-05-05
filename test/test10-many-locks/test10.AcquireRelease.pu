@@ -1,0 +1,19 @@
+@startuml
+state AcquireRelease{
+  note as KEYNOTE
+   def key(self, event) -> Optional[str]:
+    match event:
+        case Acquire(_, lock):
+            return lock
+        case Release(_, lock):
+            return lock
+        case _:
+            return None
+  end note
+  [*] -> Always
+  state Always #green
+  state DoRelease #yellow : lock : str
+  Always --> DoRelease : **Acquire(_, lock)**\n--->\n(lock)
+  DoRelease --> [*] : **Release(_, self.lock)**
+}
+@enduml

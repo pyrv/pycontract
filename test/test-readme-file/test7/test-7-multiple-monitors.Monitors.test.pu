@@ -1,0 +1,6 @@
+@startuml
+state Monitors{
+  state Monitor1
+  state Monitor2
+}
+@enduml

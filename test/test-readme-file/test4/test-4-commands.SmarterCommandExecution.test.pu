@@ -1,0 +1,20 @@
+@startuml
+state SmarterCommandExecution{
+  [*] -> __Always__
+  state __Always__ #green
+  state fork_state2 <<fork>>
+  state DoComplete #yellow : cmd : str\nnr : int\ntime : int
+  state Executed : nr : int
+  state Dispatched : nr : int
+  __Always__ --> fork_state2 : **{'name': 'dispatch', 'cmd': cmd, 'nr': nr, 'time': time}**
+  fork_state2 -[dashed]-> DoComplete : \n--->\n(cmd,nr,time)
+  fork_state2 -[dashed]-> Dispatched : \n--->\n(nr)
+  state error #red
+  DoComplete --> error : 1 **{'time': time}**\ntime - self.time > 3000
+  DoComplete --> Executed : 2 **{'name': 'complete', 'cmd': self.cmd, 'nr': self.nr, 'time': time}**\n--->\n(self.nr)
+  state error #red
+  Executed --> error : **{'name': 'complete', 'nr': self.nr}**
+  state error #red
+  Dispatched --> error : **{'name': 'dispatch', 'nr': self.nr}**
+}
+@enduml

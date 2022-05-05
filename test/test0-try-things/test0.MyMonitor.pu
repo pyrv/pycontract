@@ -1,0 +1,9 @@
+@startuml
+state MyMonitor{
+  [*] -> Unknown
+  state Unknown
+  state One
+  Unknown --> One : 1 **1**
+  Unknown --> Unknown : 2 **2**
+}
+@enduml

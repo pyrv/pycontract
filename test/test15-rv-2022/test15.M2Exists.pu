@@ -1,0 +1,19 @@
+@startuml
+state M2Exists{
+  [*] -> __Always__
+  state __Always__ #green
+  state fork_state2 <<fork>>
+  state DoRelease #yellow : thread : str\nlock : int
+  state DoNotFree : lock : int
+  __Always__ --> fork_state2 : 1 **Acquire(thread, lock)**
+  fork_state2 -[dashed]-> DoRelease : \n--->\n(thread,lock)
+  fork_state2 -[dashed]-> DoNotFree : \n--->\n(lock)
+  state error #red
+  __Always__ --> error : 2 **Release(_, lock)**\nnot self.exists(lambda state: isinstance(state, M2Exists.DoRelease) and state.lock == lock)
+  state error #red
+  DoRelease --> error : 1 **Acquire(thread, self.lock)**\nthread != self.thread
+  DoRelease --> [*] : 2 **Release(_, self.lock)**
+  state error #red
+  DoNotFree --> error : **Free(self.lock)**
+}
+@enduml

@@ -1,0 +1,53 @@
+@startuml
+state InsertableDevice{
+  note as SUPER #aliceblue
+   **extends** NextMonitor
+  end note
+  [*] -> Unknown
+  state Unknown
+  state Inserting
+  state Inserted
+  state fork_state1 <<fork>>
+  state Retracting
+  state Retracted
+  state fork_state2 <<fork>>
+  Unknown --> Next : 1 **{'type': 'command', 'name': 'GetInsertionState'}**\n--->\n({'type': 'return', 'arg': 'Unknown'},self.Unknown())
+  Unknown --> Next : 2 **{'type': 'command', 'name': 'BeginInsert'} | {'type': 'command', 'name': 'BeginRetract'} | {'type': 'command', 'name': 'WaitForInsert'} | {'type': 'command', 'name': 'WaitForRetract'}**\n--->\n({'type': 'exception', 'message': event['name'] + '_not_allowed'},self.Unknown())
+  Unknown --> Retracted : 3 **{'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Retracted'}**
+  Unknown --> Inserted : 4 **{'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Inserted'}**
+  Unknown --> Unknown : 5 **{'type': 'error', 'name': 'ErrorNotif', 'message': 'error - staying in UNKNOWN'}**
+  Inserting --> Next : 1 **{'type': 'command', 'name': 'GetInsertionState'}**\n--->\n({'type': 'return', 'arg': 'Inserting'},self.Inserting())
+  Inserting --> Next : 2 **{'type': 'command', 'name': 'BeginInsert'}**\n--->\n({'type': 'exception', 'message': 'BeginInsert_not_allowed'},self.Inserting())
+  Inserting --> Next : 3 **{'type': 'command', 'name': 'BeginRetract'}**\n--->\n({'type': 'exception', 'message': 'BeginRetract_not_allowed'},self.Inserting())
+  Inserting --> Next : 4 **{'type': 'command', 'name': 'WaitForInsert'}**\n--->\n(({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Inserted'}, self.Inserted()),({'type': 'exception', 'message': 'WaitForInsert_failed'}, self.Next({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'}, self.Unknown())))
+  Inserting --> Next : 5 **{'type': 'command', 'name': 'WaitForRetract'}**\n--->\n({'type': 'exception', 'message': 'WaitForRetract_not_allowed'},self.Inserting())
+  Inserting --> Inserted : 6 **{'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Inserted'}**
+  Inserting --> Next : 7 **{'type': 'error', 'name': 'ErrorNotif', 'message': 'error - going to UNKNOWN'}**\n--->\n({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'},self.Unknown())
+  Inserted --> Next : 1 **{'type': 'command', 'name': 'GetInsertionState'}**\n--->\n({'type': 'return', 'arg': 'Inserted'},self.Inserted())
+  Inserted --> Next : 2 **{'type': 'command', 'name': 'BeginInsert'}**\n--->\n({'type': 'exception', 'message': 'BeginInsert_not_allowed'},self.Inserted())
+  Inserted --> Next : 3 **{'type': 'command', 'name': 'BeginRetract'}**\n--->\n(({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Retracting'}, self.Retracting()),({'type': 'exception', 'message': 'BeginRetract_failed'}, self.Unknown()))
+  Inserted --> fork_state1 : 4 **{'type': 'command', 'name': 'WaitForInsert'}**
+  fork_state1 -[dashed]-> Inserted
+  fork_state1 -[dashed]-> NextStep
+  Inserted --> Unknown : 5 **{'type': 'exception', 'message': 'WaitForInsert_failed'}**\nself.NextStep()
+  Inserted --> Next : 6 **{'type': 'command', 'name': 'WaitForRetract'}**\n--->\n({'type': 'exception', 'message': 'WaitForRetract_not_allowed'},self.Inserted())
+  Inserted --> Retracting : 7 **{'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Retracting'}**
+  Inserted --> Next : 8 **{'type': 'error', 'name': 'ErrorNotif', 'message': 'error - going to UNKNOWN'}**\n--->\n({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'},self.Unknown())
+  Retracting --> Next : 1 **{'type': 'command', 'name': 'GetInsertionState'}**\n--->\n({'type': 'return', 'arg': 'Retracting'},self.Retracting())
+  Retracting --> Next : 2 **{'type': 'command', 'name': 'BeginInsert'}**\n--->\n({'type': 'exception', 'message': 'BeginInsert_not_allowed'},self.Retracting())
+  Retracting --> Next : 3 **{'type': 'command', 'name': 'BeginRetract'}**\n--->\n({'type': 'exception', 'message': 'BeginRetract_not_allowed'},self.Retracting())
+  Retracting --> Next : 4 **{'type': 'command', 'name': 'WaitForInsert'}**\n--->\n({'type': 'exception', 'message': 'WaitForInsert_not_allowed'},self.Retracting())
+  Retracting --> Next : 5 **{'type': 'command', 'name': 'WaitForRetract'}**\n--->\n(({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Retracted'}, self.Retracted()),({'type': 'exception', 'message': 'WaitForRetract_failed'}, self.Next({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'}, self.Unknown())))
+  Retracting --> Retracted : 6 **{'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Retracted'}**
+  Retracting --> Next : 7 **{'type': 'error', 'name': 'ErrorNotif', 'message': 'error - going to UNKNOWN'}**\n--->\n({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'},self.Unknown())
+  Retracted --> Next : 1 **{'type': 'command', 'name': 'GetInsertionState'}**\n--->\n({'type': 'return', 'arg': 'Retracted'},self.Retracted())
+  Retracted --> Next : 2 **{'type': 'command', 'name': 'BeginInsert'}**\n--->\n(({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Inserting'}, self.Inserting()),({'type': 'exception', 'message': 'BeginInsert_failed'}, self.Unknown()))
+  Retracted --> Next : 3 **{'type': 'command', 'name': 'BeginRetract'}**\n--->\n({'type': 'exception', 'message': 'BeginRetract_not_allowed'},self.Retracted())
+  Retracted --> Next : 4 **{'type': 'command', 'name': 'WaitForInsert'}**\n--->\n({'type': 'exception', 'message': 'WaitForInsert_not_allowed'},self.Retracted())
+  Retracted --> fork_state2 : 5 **{'type': 'command', 'name': 'WaitForRetract'}**
+  fork_state2 -[dashed]-> Retracted
+  fork_state2 -[dashed]-> NextStep
+  Retracted --> Next : 6 **{'type': 'exception', 'message': 'WaitForRetract_failed'}**\nself.NextStep()\n--->\n({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'},self.Unknown())
+  Retracted --> Next : 7 **{'type': 'error', 'name': 'ErrorNotif', 'message': 'error - going to UNKNOWN'}**\n--->\n({'type': 'notification', 'name': 'InsertionStateChanged', 'arg': 'Unknown'},self.Unknown())
+}
+@enduml

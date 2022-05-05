@@ -1,0 +1,12 @@
+@startuml
+state LockMonitor{
+  note as KEYNOTE
+   def key(self, event) -> object:
+    match event:
+        case Acquire(task, lock):
+            return lock
+        case Release(task, lock):
+            return lock
+  end note
+}
+@enduml

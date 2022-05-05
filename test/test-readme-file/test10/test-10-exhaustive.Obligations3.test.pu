@@ -1,0 +1,14 @@
+@startuml
+state Obligations3{
+  [*] -> __Always__
+  state __Always__ #green
+  state DoCompleteLogClean #yellow : cmd : str
+  __Always__ --> DoCompleteLogClean : **{'name': 'dispatch', 'cmd': cmd}**\n--->\n(cmd)
+  DoCompleteLogClean --> done : 1 **{'name': 'complete', 'cmd': self.cmd}**
+  DoCompleteLogClean --> done : 2 **{'name': 'log', 'cmd': self.cmd}**
+  DoCompleteLogClean --> done : 3 **{'name': 'clean', 'cmd': self.cmd}**
+  DoCompleteLogClean --> [*] : 4 **{'name': 'cancel', 'cmd': self.cmd}**
+  state error #red
+  DoCompleteLogClean --> error : 5 **{'name': 'fail', 'cmd': self.cmd}**
+}
+@enduml

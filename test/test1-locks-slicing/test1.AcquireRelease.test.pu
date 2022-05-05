@@ -1,0 +1,14 @@
+@startuml
+state AcquireRelease{
+  note as SUPER #aliceblue
+   **extends** LockMonitor
+  end note
+  [*] -> Start
+  state Start
+  state Acquired #yellow : task : int\nlock : int
+  Start --> Acquired : **Acquire(task, lock)**\n--->\n(task,lock)
+  state error #red
+  Acquired --> error : 1 **Acquire(_, self.lock)**
+  Acquired --> [*] : 2 **Release(self.task, self.lock)**
+}
+@enduml

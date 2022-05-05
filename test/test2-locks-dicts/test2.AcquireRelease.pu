@@ -1,0 +1,11 @@
+@startuml
+state AcquireRelease{
+  [*] -> Start
+  state Start #green
+  state Acquired #yellow : task : int\nlock : int
+  Start --> Acquired : **LockEvent('acquire', {'task': task, 'lock': lock})**\n--->\n(task,lock)
+  state error #red
+  Acquired --> error : 1 **LockEvent('acquire', {'lock': self.lock})**
+  Acquired --> [*] : 2 **LockEvent('release', {'task': self.task, 'lock': self.lock})**
+}
+@enduml
