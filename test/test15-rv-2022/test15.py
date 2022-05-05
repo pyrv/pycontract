@@ -71,13 +71,21 @@ class M1Expanded(Monitor):
 
 class M2(Monitor):
     """
-    Use of facts.
+    Use of facts, counting.
     """
+
+    def __init__(self):
+        super().__init__()
+        self.count: int  = 0
 
     def transition(self, event):
         match event:
             case Acquire(thread, lock):
-                return [M2.DoRelease(thread, lock), M2.DoNotFree(lock)]
+                if self.count < 3:
+                    self.count += 1
+                    return [M2.DoRelease(thread, lock), M2.DoNotFree(lock)]
+                else:
+                    return error()
             case Release(thread, lock) if not M2.DoRelease(thread, lock):
                 return error(f'thread releases un-acquired or already released lock')
 
@@ -91,6 +99,7 @@ class M2(Monitor):
                 case Acquire(thread, self.lock) if thread != self.thread:
                     return error('lock acquired by other thread')
                 case Release(self.thread, self.lock):
+                    self.count -= 1
                     return ok
 
     @data
@@ -139,12 +148,8 @@ class M2Exists(Monitor):
 
 class M3(Monitor):
     """
-    Indexing, next-states, and counting.
+    Indexing and next-states.
     """
-
-    def __init__(self):
-        super().__init__()
-        self.count: int = 0
 
     def key(self, event) -> Optional[object]:
         match event:
@@ -155,8 +160,7 @@ class M3(Monitor):
     class Idle(NextState):
         def transition(self, event):
             match event:
-                case Acquire(thread, lock) if self.monitor.count < 3:
-                    self.monitor.count += 1
+                case Acquire(thread, lock):
                     return M3.DoRelease(thread, lock)
 
     @data
@@ -167,7 +171,6 @@ class M3(Monitor):
         def transition(self, event):
             match event:
                 case Release(self.thread, self.lock):
-                    self.monitor.count -= 1
                     return M3.Idle()
 
 
@@ -178,7 +181,7 @@ class M4(Monitor):
 
 
 if __name__ == '__main__':
-    visualize(__file__, True)
+    # visualize(__file__, True)
     set_debug(True)
     trace1 = [
         Acquire('T1', 1),
@@ -219,9 +222,10 @@ if __name__ == '__main__':
         Release('T3', 3),
         Acquire('T4', 4),
         Acquire('T5', 4),
+        Acquire('T6', 5)
     ]
-    m = M3()
-    m.verify(trace6)
+    m = M2()
+    m.verify(trace1)
 
 
 
