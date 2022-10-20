@@ -195,8 +195,14 @@ if __name__ == '__main__':
         Acquire('T5', 4),
         Acquire('T6', 5)
     ]
-    m = M2(2)
-    m.verify(trace5)
+    trace = [
+        Acquire('T1', 1),
+        Acquire('T2', 2),
+        Acquire('T1', 2),
+        Release('T1', 2)
+    ]
+    m = M3()
+    m.verify(trace)
 
 
 

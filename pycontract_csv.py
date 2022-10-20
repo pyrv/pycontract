@@ -114,7 +114,7 @@ class CSVSource:
 
     def __next__(self):
         self.line_count += 1
-        if self.line_count % 1000000 == 0:
+        if self.line_count % 100000 == 0:
             print(f'- {self.line_count}')
         the_next = self.csv_reader.__next__()
         return the_next

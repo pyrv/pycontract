@@ -1,0 +1,15 @@
+@startuml
+state M{
+  [*] -> __Always__
+  state __Always__ #green
+  state Succeed #yellow : cmd : str\nnr : str
+  state DontSucceedAgain : cmd : str\nnr : str
+  __Always__ --> Succeed : **{Col.ID: 'dispatch', Col.CMD: c, Col.NR: n}**\n--->\n(c,n)
+  Succeed --> [*] : 1 **{Col.ID: 'cancel', Col.CMD: self.cmd, Col.NR: self.nr}**
+  state error #red
+  Succeed --> error : 2 **{Col.ID: 'fail', Col.CMD: self.cmd, Col.NR: self.nr}**
+  Succeed --> DontSucceedAgain : 3 **{Col.ID: 'succeed', Col.CMD: self.cmd, Col.NR: self.nr}**\n--->\n(self.cmd,self.nr)
+  state error #red
+  DontSucceedAgain --> error : **{Col.ID: 'succeed', Col.CMD: self.cmd, Col.NR: self.nr}**
+}
+@enduml

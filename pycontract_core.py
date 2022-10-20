@@ -946,6 +946,13 @@ class Monitor:
         """
         return state in self.get_all_states()
 
+    def size(self) -> int:
+        """
+        Returns number of active states in the monitor.
+        :return: number of active states.
+        """
+        return len(self.states)
+
     def get_all_states(self) -> Set[State]:
         """
         Returns all the states of a monitor. These include the main set of states

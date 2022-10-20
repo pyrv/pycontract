@@ -4,16 +4,18 @@ state M2{
   state __Always__ #green
   state fork_state1 <<fork>>
   state DoRelease #yellow : thread : str\nlock : int
+  state fork_state2 <<fork>>
   state DoNotFree : lock : int
-  __Always__ --> fork_state1 : 1 **Acquire(thread, lock)**\nself.count < 3
+  __Always__ --> fork_state1 : 1 **Acquire(thread, lock)**\nnot self.exists(lambda state: isinstance(state, M2.DoRelease) and state.lock == lock) and\nself.monitor.count < self.limit
   fork_state1 -[dashed]-> DoRelease : \n--->\n(thread,lock)
   fork_state1 -[dashed]-> DoNotFree : \n--->\n(lock)
   state error #red
-  __Always__ --> error : 1 **Acquire(thread, lock)**\n__not__(self.count < 3)
+  __Always__ --> error : 1 **Acquire(thread, lock)**\nnot self.exists(lambda state: isinstance(state, M2.DoRelease) and state.lock == lock) and\n__not__(self.monitor.count < self.limit)
   state error #red
   __Always__ --> error : 2 **Release(thread, lock)**\nnot M2.DoRelease(thread, lock)
+  DoRelease --> fork_state2 : 1 **Acquire(_, self.lock)**
   state error #red
-  DoRelease --> error : 1 **Acquire(thread, self.lock)**\nthread != self.thread
+  fork_state2 -[dashed]-> error
   DoRelease --> [*] : 2 **Release(self.thread, self.lock)**
   state error #red
   DoNotFree --> error : **Free(self.lock)**
