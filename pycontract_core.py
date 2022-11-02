@@ -52,7 +52,7 @@ When set progress will be reported for every `DEBUG_PROGRESS`
 event. Default is `None` which means no progress reports.
 """
 
-DEBUG_PROGRESS: int = None
+DEBUG_PROGRESS: Optional[int] = None
 
 """
 The current monitor being evaluated. Is used from within states
@@ -119,6 +119,7 @@ def debug(msg: str):
     """
     Prints debugging information. By giving this function a special
     name it is easier to locate debugging statements.
+    Calls of this function are always guarded by a test on the `DEBUG` flag.
     :param msg: the message to be printed.
     """
     print(msg)
@@ -215,10 +216,10 @@ def quote(arg: object) -> object:
     else:
         return arg
 
-
-@data
-class Event:
-    pass
+"""
+The type of events. An event can be any Python value.
+"""
+Event = object
 
 
 @data
@@ -305,21 +306,27 @@ class State:
         """
         return self.monitor.exists(predicate)
 
-    def transition(self, event) -> Optional[List["State"]]:
+    def transition(self, event) -> Optional["State" | List["State"]]:
         """
-        Evaluates a state on an event. The result is an optional list of resulting states.
-        None is returned if either there is no transition corresponding to the event.
+        Evaluates a state on an event. The result is an optional state or a list of states.
+        None is returned if there is no transition corresponding to the event (the default).
+        The method can be overridden in a state to model the state's behavior.
         :param event: the event on which the state is evaluated.
-        :return: the optional list of resulting states, the target states of the transition.
+        :return: the optional state or list of states, the target states of the transition.
         """
         pass
 
     def eval(self, event: Event) -> List["State"]:
         """
-        Evaluates a state on an event. The result is an optional list of resulting states.
-        None is returned if there is no transition corresponding to the event,
+        Evaluates a state on an event. The result is a list of resulting states.
+        In case the event does not match any transition, the singleton list containing
+        the state itself is returned, modeling that we stay in that state.
+        Otherwise, the state or list of states returned by the `transition` function is
+        returned (if a single state is returned by the `transition` function, it is wrapped
+        in a singleton list).
+        The `eval` method is overridden in subclasses of class `State` to behave differently.
         :param event: the event on which the state is evaluated.
-        :return: the optional list of resulting states, the target states of the transition.
+        :return: the list of resulting states, the target states of the transition.
         """
         result = self.transition(event)
         if result is None:
@@ -330,9 +337,9 @@ class State:
 
 class HotState(State):
     """
-    A state that behaves as State. The difference is in how it is handled at the end of
-    monitoring (when the end() method is called on the monitor). In that case any state
-    of type HotState causes an error message to be issued. "Hot" reflects the concept of
+    A state that behaves as `State`. The difference is in how it is handled at the end of
+    monitoring (when the `end()` method is called on the monitor). In that case any state
+    of type `HotState` causes an error message to be issued. "Hot" reflects the concept of
     standing on hot coals, eventually it is necessary to move on.
     """
     pass
@@ -341,22 +348,20 @@ class HotState(State):
 class NextState(State):
     """
     A state where the next event has to trigger a transition.
-    It overrides the eval method of State, by checking that
-    there is a matching transition method. If not, an error is
+    It overrides the `eval` method of `State`, by checking that
+    there is a matching `transition`. If not, an error is
     issued. Note that such a state should only be used together
-    with some form of slicing (global or local).
+    with some form of slicing.
     """
 
     def eval(self, event: Event) -> List[State]:
         """
-        Overrides the eval method of State, by checking that
-        there is a matching transition method. If not, an error is
+        Overrides the `eval` method of `State`, by checking that
+        there is a matching transition. If not, an error is
         issued.
         :param event: the event on which the state is evaluated.
-        :return: the optional list of resulting states, the target states of the transition.
-        error is returned if there is no matching transition.
-        None is returned if the transition method returns None (note that in this case the old state
-        is kept in the state vector, so we do not need to add it again).
+        :return: the list of resulting states, the target states of the transition.
+        The list will contain an error state if there is no matching transition.
         """
         result = self.transition(event)
         if result is None:
@@ -367,9 +372,9 @@ class NextState(State):
 
 class HotNextState(NextState):
     """
-    A state that behaves as NextState. The difference is in how it is handled at the end of
-    monitoring (when the end() method is called on the monitor). In that case any state
-    of type HotNextState causes an error message to be issued. "Hot" reflects the concept of
+    A state that behaves as `NextState`. The difference is in how it is handled at the end of
+    monitoring (when the `end()` method is called on the monitor). In that case any state
+    of type `HotNextState` causes an error message to be issued. "Hot" reflects the concept of
     standing on hot coals, eventually it is necessary to move on.
     """
     pass
@@ -378,19 +383,17 @@ class HotNextState(NextState):
 class AlwaysState(State):
     """
     A state that is always active: it is always maintained in the
-    state vector. It overrides the eval method of State, by adding
-    the always state back into the state vector after State.eval is
-    called.
+    state vector. It overrides the `eval` method of `State`, by adding
+    itself back into the state vector independently of whether the `transition` function
+    matches the event.
     """
 
-    def eval(self, event: Event) -> Optional[List[State]]:
+    def eval(self, event: Event) -> List[State]:
         """
-        Overrides the eval method of State, by adding the always state back
-        into the state vector after State.eval is called.
+        Overrides the `eval` method of `State`, by always adding itself back
+        into the state vector.
         :param event: the event on which the state is evaluated.
-        :return: the optional list of resulting states, the target states of the transition.
-        None is returned if State.eval returns None (note that in this case the old state
-        is kept in the state vector, so we do not need to add it again).
+        :return: the list of resulting states, the target states of the transition.
         """
         result = self.transition(event)
         if result is None:
@@ -401,14 +404,14 @@ class AlwaysState(State):
 
 class ErrorState(State):
     """
-    A transition can return an ErrorState object, including an error message.
-    This will cause the error to be recorded. The ErrorState itself is removed
+    A transition can return an `ErrorState` object, including an error message.
+    This will cause the error to be recorded. The `ErrorState` itself is removed
     from the state vector after processing.
     """
 
     def __init__(self, msg: str = ""):
         """
-        The ErrorState can be initialized with an error message, by default
+        The `ErrorState` can be initialized with an error message, by default
         the empty string.
         :param msg: the error message.
         """
@@ -420,23 +423,23 @@ class ErrorState(State):
 
 def error(msg: str = "") -> ErrorState:
     """
-    Returns an ErrorState, with or without a message.
+    Returns an `ErrorState`, with or without a message.
     :param msg: the message.
-    :return: an ErrorState object.
+    :return: an `ErrorState` object.
     """
     return ErrorState(msg)
 
 
 class InfoState(State):
     """
-    A transition can return an InfoState object, including a message.
-    This is for just recording facts about the trace. The InfoState itself is removed
+    A transition can return an `InfoState` object, including a message.
+    This is for just recording facts about the trace. The `InfoState` itself is removed
     from the state vector after processing.
     """
 
     def __init__(self, msg: str):
         """
-        The InfoState is initialized with a message, which has to be provided
+        The `InfoState` is initialized with a message, which has to be provided
         (no default value).
         :param msg: the message.
         """
@@ -448,7 +451,7 @@ class InfoState(State):
 
 def information(msg: str) -> InfoState:
     """
-    Returns an InfoState, with a message.
+    Returns an `InfoState`, with a message.
     :param msg: the message.
     :return: an InfoState object.
     """
@@ -463,14 +466,14 @@ to leave the source state without performing further monitoring.
 
 
 @data
-class OkValue:
+class OkState(State):
     pass
 
 
-ok = OkValue()
+ok = OkState()
 
 
-def done():
+def done() -> int:
     """
     The `done()` function is called in `exhaustive` states. All transitions that return
     `done()` must be taken before that state is left with an ok. Alternatively some other
@@ -482,7 +485,6 @@ def done():
     frame_below_current = 1  # 0 is the top frame
     line_nr_of_call = 2
     line_called_from = inspect.stack()[frame_below_current][line_nr_of_call]
-    #  print(f'done() called from {line_called_from}')
     return line_called_from
 
 
@@ -560,7 +562,6 @@ def exhaustive(transition_function: Callable[[object, Event], Optional[List[Stat
     index_line_nr_of_call = 2  # call of decorator function `exhaustive`.
     # line number of first line of transition function definition
     line_number = inspect.stack()[index_frame_below_current][index_line_nr_of_call]
-    # print(f'first line of transition function: {line_number}')
     (code, nr_of_lines) = inspect.getsourcelines(transition_function)
     # code includes decorator which must be removed.
     code_except_decorator = code[1:]
@@ -568,23 +569,19 @@ def exhaustive(transition_function: Callable[[object, Event], Optional[List[Stat
     next_case: str = ""
     next_case_line_number: int = 0
     for line in code_except_decorator:
-        # print(f'{line_number} : {line}')
         if "case " in line:
             next_case_line_number = line_number
             next_case = line.strip()
         if "done()" in line:
             match_obligations.add(line_number, next_case_line_number, next_case)
         line_number += 1
-    # print(match_obligations)
 
     def new_transition(self, event):
         if not hasattr(self, '__data_object__') or self.__data_object__ is None:
             self.__data_object__ = match_obligations
         result = transition_function(self, event)
         if isinstance(result, int):
-            # print(f'++> {self.__data_object__}')
             self.__data_object__.remove(result)
-            # print(f'--> {self.__data_object__}')
             if self.__data_object__.empty():
                 return ok  # we are done
             else:
@@ -686,11 +683,6 @@ class Monitor:
             if not initial_state_found:
                 (name, the_first_class) = state_classes[0]
                 self.add_state_to_state_vector(self.states, the_first_class())
-            # Debug initial states
-            # print(f'Initial states of {self.get_monitor_name()}:')
-            # for state in self.states:
-            #     print(state)
-            # print()
 
     def set_event_count(self, initial_value: int):
         """
@@ -703,12 +695,16 @@ class Monitor:
         self.event_count = initial_value
 
     def get_monitor_name(self) -> str:
+        """
+        Returns the unqualified name (not including the module) of the monitor.
+        :return: the monitor name.
+        """
         return self.__class__.__name__
 
     def key(self, event) -> Optional[object]:
         """
         Returns indexing key of event. Returns None by default but can be
-        overwritten by user.
+        overridden by the user.
         :param event: event to extract index from.
         :return: the index of the event.
         """
@@ -718,8 +714,8 @@ class Monitor:
         """
         Records one or more monitors as sub-monitors of this monitor.
         Each event submitted to this monitor is also submitted to the
-        sub-monitors. Likewise when end() is called on this monitor,
-        end() is also called on the sub-monitors.
+        sub-monitors. Likewise when `end()` is called on this monitor,
+        `end()` is also called on the sub-monitors.
         :param monitors: the monitors to record as sub-monitors.
         """
         for monitor in monitors:
@@ -739,7 +735,7 @@ class Monitor:
         """
           This method is used to submit events to the monitor.
           The monitor evaluates the event against the states in the state vector.
-          The eval method is called recursively on sub-monitors, so it is only
+          The `eval` method is called recursively on sub-monitors, so it is only
           necessary to call it on the topmost monitor.
           :param event: the submitted event.
           """
@@ -787,7 +783,7 @@ class Monitor:
         states_to_add = set([])
         new_states = set([])
         for source_state in states:
-            resulting_states = source_state.eval(event)  # returns None or a list of states
+            resulting_states = source_state.eval(event)
             if DEBUG:
                 debug(f'{source_state} results in {mk_string("[",", ","]", resulting_states)}')
             if resulting_states is not None:
@@ -813,8 +809,8 @@ class Monitor:
     def end(self):
         """
         Terminates monitoring for the monitor. This includes looking for hot states
-        of type HotState, which should not occur, and then printing out a summary
-        of the verification. The end() method is called recursively on sub-monitors,
+        of type `HotState`, which should not occur, and then printing out a summary
+        of the verification. The `end()` method is called recursively on sub-monitors,
         so it only needs to be called on the top-most monitor.
         """
         if self.is_top_monitor:
@@ -833,7 +829,7 @@ class Monitor:
     def verify(self, trace: List[Event]):
         '''
         Verifies a trace, which is a list of events.
-        It calls eval on each event and calls end() at the
+        It calls `eval` on each event and calls `end()` at the
         end of the trace.
         :param trace: the trace.
         '''
@@ -884,23 +880,21 @@ class Monitor:
 
     def report_transition_information(self, state: State, event: Event, msg: str):
         """
-        Reports a message caused by taking a transition that results in an InfoState.
+        Reports a message caused by taking a transition that results in an `InfoState`.
         This is not considered as an error necessarily.
         :param state: the state in which the transition is taken.
         :param event: the event that causes the transition to be taken.
         :param msg: the message provided by user.
         """
         message = f'--- message from {self.get_monitor_name()}:\n'
-        # message += f'    state {state}\n'
-        # message += f'    event {self.event_count} {event}\n'
         message += f'    {msg}'
         self.errors.append(message)
         print(message)
 
     def report_end_error(self, msg: str):
         """
-        Reports a hot state (HotState) encountered in the state vector of the monitor
-        at the end of monitoring, when the end() method is called.
+        Reports a hot state (`HotState`) encountered in the state vector of the monitor
+        at the end of monitoring, when the `end()` method is called.
         :param msg: error message, identifying the hot state.
         """
         message = f'*** error at end in {self.get_monitor_name()}:\n'
@@ -945,13 +939,6 @@ class Monitor:
         :return: True if the state is in the state vector.
         """
         return state in self.get_all_states()
-
-    def size(self) -> int:
-        """
-        Returns number of active states in the monitor.
-        :return: number of active states.
-        """
-        return len(self.states)
 
     def get_all_states(self) -> Set[State]:
         """
@@ -1016,49 +1003,3 @@ class Monitor:
                 print(error_message)
         else:
             print('No reports!')
-
-
-class CSVMonitor(Monitor):
-    """
-    A monitor with an `event_count` starting at 1 (instead of 0).
-    This is used when processing CSV files, where there is a header
-    row, which should be counted as an 'event' so that `event_count` will
-    always will correspond to the row number in the CSV file.
-    """
-    def __init__(self):
-        super().__init__()
-        self.set_event_count(1)
-
-
-class Data(ABC):
-    """
-    Abstract class for representing data. Used to pass data around between states
-    to avoid repetition of variable definitions.
-    """
-
-    def upd(self, bindings: Dict[str, object]) -> "Data":
-        """
-        Updates the state with bindings provided as a dictionary.
-        :param bindings: the dictionary representing the updates to be performed,
-        mapping variable names to their new value.
-        :return: reference to the updated state. It is the same reference as passed in. It is returned
-        to make application of this method more succinct as an argument to a state constructor.
-        """
-        for (key, value) in bindings.items():
-            self.__setattr__(key, value)
-        return self
-
-    def upd_copy(self, bindings):
-        """
-        Updates the state with bindings provided as a dictionary, making a copy of the state first.
-        :param bindings: the dictionary representing the updates to be performed,
-        mapping variable names to their new value.
-        :return: reference to the new state, which is a shallow copy of `self` updated with the
-        new bindings. It is returned to make application of this method more succinct as an
-        argument to a state constructor.
-        """
-        obj = copy.copy(self)
-        for (key, value) in bindings.items():
-            obj.__setattr__(key, value)
-        return obj
-
