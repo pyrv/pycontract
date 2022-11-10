@@ -35,24 +35,25 @@ Auxiliary types.
 Char = str
 
 """
-When set to true output will contain debugging information.
-"""
-
-DEBUG: bool = False
 
 """
-When set garbage collected states will be printed.
-This can be used to study how garbage collection works.
-"""
 
-DEBUG_GC: bool = False
 
-"""
-When set progress will be reported for every `DEBUG_PROGRESS`
-event. Default is `None` which means no progress reports.
-"""
-
-DEBUG_PROGRESS: Optional[int] = None
+class Debug:
+    """
+    When set to true output will contain debugging information.
+    """
+    DEBUG: bool = False
+    """
+    When set garbage collected states will be printed.
+    This can be used to study how garbage collection works.
+    """
+    DEBUG_GC: bool = False
+    """
+    When set progress will be reported for every `DEBUG_PROGRESS`
+    event. Default is `None` which means no progress reports.
+    """
+    DEBUG_PROGRESS: Optional[int] = None
 
 
 def test(nr: int, txt: str, msg: str = ''):
@@ -76,8 +77,7 @@ def set_debug(value: bool):
        2.2 final set of states of the monitor
     :param value: when True debugging information is printed.
     """
-    global DEBUG
-    DEBUG = value
+    Debug.DEBUG = value
 
 
 def set_debug_gc(value: bool):
@@ -86,8 +86,7 @@ def set_debug_gc(value: bool):
     states will be printed
     :param value: when True debugging information is printed.
     """
-    global DEBUG_GC
-    DEBUG_GC = value
+    Debug.DEBUG_GC = value
 
 
 def set_debug_progress(value: int):
@@ -96,8 +95,7 @@ def set_debug_progress(value: int):
     a message is issued for every `value` event.
     :param value: a message will be issued for every `value` event.
     """
-    global DEBUG_PROGRESS
-    DEBUG_PROGRESS = value
+    Debug.DEBUG_PROGRESS = value
 
 
 def debug(msg: str):
@@ -262,7 +260,7 @@ class State:
         Called when a state object is garbage collected.
         Prints the state if `DEBUG_GC` is True.
         """
-        if DEBUG_GC:
+        if Debug.DEBUG_GC:
             print(f'{str(self)} garbage collected')
 
     def set_monitor_to(self, monitor: "Monitor"):
@@ -432,7 +430,7 @@ class InfoState(State):
         return f'InfoState({self.message})'
 
 
-def information(msg: str) -> InfoState:
+def info(msg: str) -> InfoState:
     """
     Returns an `InfoState`, with a message.
     :param msg: the message.
@@ -723,13 +721,13 @@ class Monitor:
           :param event: the submitted event.
           """
         self.event_count += 1
-        if DEBUG_PROGRESS and self.is_top_monitor and self.event_count % DEBUG_PROGRESS == 0:
+        if Debug.DEBUG_PROGRESS and self.is_top_monitor and self.event_count % Debug.DEBUG_PROGRESS == 0:
             debug(f'---------------------> {self.event_count}')
-        if DEBUG and self.is_top_monitor:
+        if Debug.DEBUG and self.is_top_monitor:
             debug_frame("=", f'Event {self.event_count} {event}')
         for monitor in self.monitors:
             monitor.eval(event)
-        if DEBUG:
+        if Debug.DEBUG:
             debug_frame("#", f'Monitor {self.get_monitor_name()}')
         if self.is_relevant(event):
             index = self.key(event)
@@ -749,7 +747,7 @@ class Monitor:
                 new_states = self.eval_states(event, states)
                 if new_states is not None:
                     self.states_indexed[index] = new_states
-        if DEBUG:
+        if Debug.DEBUG:
             debug(f'\n{self}')
 
     def eval_states(self, event: Event, states: Set[State]) -> Optional[Set[State]]:
@@ -765,7 +763,7 @@ class Monitor:
         new_states = set([])
         for source_state in states:
             resulting_states = source_state.eval(event)
-            if DEBUG:
+            if Debug.DEBUG:
                 debug(f'{source_state} results in {mk_string("[",", ","]", resulting_states)}')
             transition_triggered = True
             states_to_remove.add(source_state)
