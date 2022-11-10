@@ -1,5 +1,4 @@
 
-
 from pycontract import *
 import unittest
 import test.utest

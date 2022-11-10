@@ -1,5 +1,6 @@
-import gc
+import os
 from datetime import datetime
+from typing import Optional, List
 
 from pycontract import *
 import unittest
