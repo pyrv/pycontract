@@ -54,12 +54,6 @@ event. Default is `None` which means no progress reports.
 
 DEBUG_PROGRESS: Optional[int] = None
 
-"""
-The current monitor being evaluated. Is used from within states
-to access the monitor they are part of.
-"""
-__monitor__: object = None
-
 
 def test(nr: int, txt: str, msg: str = ''):
     """
@@ -106,15 +100,6 @@ def set_debug_progress(value: int):
     DEBUG_PROGRESS = value
 
 
-def debug_mode() -> bool:
-    """
-    Returns value of DEBUG flag. Used in other modules where
-    the DEBUG variable is not accessible.
-    :return: the value of the DEBUG flag.
-    """
-    return DEBUG
-
-
 def debug(msg: str):
     """
     Prints debugging information. By giving this function a special
@@ -127,13 +112,11 @@ def debug(msg: str):
 
 def debug_frame(symbol: Char, msg: str):
     """
-    Prints a message surrounded by a line of symbols before and after,
-    if the DEBUG flag is True.
+    Prints a message surrounded by a line of symbols before and after.
     :param symbol: the symbol to make up the line, as long as the message.
     :param msg: the message to be printed.
     """
-    if DEBUG:
-        print_frame(symbol, msg)
+    print_frame(symbol, msg)
 
 
 def print_frame(symbol: Char, msg: str):
@@ -272,7 +255,7 @@ class State:
         past time properties.
         :return: True of the state is in the state vector.
         """
-        return __monitor__.contains_state(self)
+        return self.monitor.contains_state(self)
 
     def __del__(self):
         """
@@ -646,8 +629,8 @@ class Monitor:
           The state vector of the monitor: the set of all active states.
         states_indexed:
           Indexed states, used for slicing.
-        errors:
-          Detected errors during monitoring.
+        messages:
+          Reported messages, including errors, during monitoring.
         event_count:
           Counts the events as they come in.
         option_show_state_event:
@@ -659,7 +642,7 @@ class Monitor:
         self.is_top_monitor: bool = True
         self.states: Set[State] = set([])
         self.states_indexed : Dict[object, Set[State]] = {}
-        self.errors: List[str] = []
+        self.messages: List[str] = []
         self.event_count: int = 0
         self.option_show_state_event: bool = True
         self.option_print_summary: bool = True
@@ -739,8 +722,6 @@ class Monitor:
           necessary to call it on the topmost monitor.
           :param event: the submitted event.
           """
-        global __monitor__
-        __monitor__ = self
         self.event_count += 1
         if DEBUG_PROGRESS and self.is_top_monitor and self.event_count % DEBUG_PROGRESS == 0:
             debug(f'---------------------> {self.event_count}')
@@ -786,18 +767,17 @@ class Monitor:
             resulting_states = source_state.eval(event)
             if DEBUG:
                 debug(f'{source_state} results in {mk_string("[",", ","]", resulting_states)}')
-            if resulting_states is not None:
-                transition_triggered = True
-                states_to_remove.add(source_state)
-                for target_state in resulting_states:
-                    if target_state == ok:
-                        pass
-                    elif isinstance(target_state, ErrorState):
-                        self.report_transition_error(source_state, event, target_state.message)
-                    elif isinstance(target_state, InfoState):
-                        self.report_transition_information(source_state, event, target_state.message)
-                    else:
-                        self.add_state_to_state_vector(states_to_add, target_state)
+            transition_triggered = True
+            states_to_remove.add(source_state)
+            for target_state in resulting_states:
+                if isinstance(target_state, OkState):
+                    pass
+                elif isinstance(target_state, ErrorState):
+                    self.report_transition_error(source_state, event, target_state.message)
+                elif isinstance(target_state, InfoState):
+                    self.report_transition_information(source_state, event, target_state.message)
+                else:
+                    self.add_state_to_state_vector(states_to_add, target_state)
         if transition_triggered:
             new_states = states
             new_states = new_states - states_to_remove
@@ -875,7 +855,7 @@ class Monitor:
             message += f'    state {state}\n'
             message += f'    event {self.event_count} {event}\n'
         message += f'    {msg}'
-        self.errors.append(message)
+        self.messages.append(message)
         print(message)
 
     def report_transition_information(self, state: State, event: Event, msg: str):
@@ -888,7 +868,7 @@ class Monitor:
         """
         message = f'--- message from {self.get_monitor_name()}:\n'
         message += f'    {msg}'
-        self.errors.append(message)
+        self.messages.append(message)
         print(message)
 
     def report_end_error(self, msg: str):
@@ -899,7 +879,7 @@ class Monitor:
         """
         message = f'*** error at end in {self.get_monitor_name()}:\n'
         message += f'    {msg}'
-        self.errors.append(message)
+        self.messages.append(message)
         print(message)
 
     def report_error(self, msg: str):
@@ -909,7 +889,7 @@ class Monitor:
         """
         message = f'*** error in {self.get_monitor_name()}:\n'
         message += f'    {msg}'
-        self.errors.append(message)
+        self.messages.append(message)
         print(message)
 
     def report_information(self, msg: str):
@@ -919,7 +899,7 @@ class Monitor:
         """
         message = f'--- message from {self.get_monitor_name()}:\n'
         message += f'    {msg}'
-        self.errors.append(message)
+        self.messages.append(message)
         print(message)
 
     def exists(self, predicate: Callable[[State], bool]) -> bool:
@@ -951,27 +931,27 @@ class Monitor:
             result = result.union(states)
         return result
 
-    def get_error_count(self) -> int:
+    def get_message_count(self) -> int:
         """
-        Returns the number of errors detected by the monitor. It is the sum
-        of the errors detected by this monitor plus the errors detected by
+        Returns the number of messages reported by the monitor. It is the sum
+        of the messages reported by this monitor plus the messages reported by
         sub-monitors (recursively).
-        :return: the number of errors detected.
+        :return: the number of messages reported.
         """
-        result = len(self.errors)
+        result = len(self.messages)
         for monitor in self.monitors:
-            result += monitor.get_error_count()
+            result += monitor.get_message_count()
         return result
 
-    def get_all_errors(self) -> List[str]:
+    def get_all_messages(self) -> List[str]:
         """
         Returns all errors detected by this monitor, including those of sub-monitors
         (recursively). Each error is represented by an error message.
         :return: the errors detected by this monitor.
         """
-        result = self.errors.copy()
+        result = self.messages.copy()
         for monitor in self.monitors:
-            result += monitor.get_all_errors()
+            result += monitor.get_all_messages()
         return result
 
     def number_of_states(self) -> int:
@@ -986,7 +966,7 @@ class Monitor:
 
     def print_summary(self):
         """
-        Prints a summary of all errors detected by this monitor,
+        Prints a summary of all messages reported by this monitor,
         including those of sub-monitors (recursively). It is only supposed to
         be called on the topmost monitor.
         """
@@ -995,11 +975,11 @@ class Monitor:
         print("Analysis result:")
         print("================")
         print()
-        errors = self.get_all_errors()
-        if errors:
-            print(f'{len(errors)} reports!')
-            for error_message in errors:
+        messages = self.get_all_messages()
+        if messages:
+            print(f'{len(messages)} messages!')
+            for message in messages:
                 print()
-                print(error_message)
+                print(message)
         else:
-            print('No reports!')
+            print('No messages!')
