@@ -117,7 +117,7 @@ class Test2(test.utest.Test):
         errors_expected = [
             "*** error transition in SmarterCommandExecution:\n    state DoComplete('TURN', 203, 1000)\n    event 3 {'name': 'complete', 'cmd': 'TURN', 'nr': 203, 'time': 5000}\n    command execution beyond 3 seconds",
             "*** error transition in SmarterCommandExecution:\n    state Executed(204)\n    event 5 {'name': 'complete', 'cmd': 'THRUST', 'nr': 204, 'time': 7500}\n    command nr 204 re-executed"]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

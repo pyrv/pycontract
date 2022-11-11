@@ -78,7 +78,7 @@ class Test2(test.utest.Test):
         csv_reader.close()
         errors_expected = [
             "*** error transition in CommandExecution:\n    state DoComplete(1000, 'TURN')\n    event 3 Complete(time=5000, cmd='TURN')\n    TURN completion takes too long"]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

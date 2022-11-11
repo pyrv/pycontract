@@ -72,7 +72,7 @@ class Test2(test.utest.Test):
         m.verify(trace)
 
         errors_expected = []
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         self.assert_equal(errors_expected, errors_actual)
 
     def test2(self):
@@ -93,7 +93,7 @@ class Test2(test.utest.Test):
             '*** error at end in AcquireRelease:\n    terminates in hot state Acquired(2, 100)',
             '*** error at end in AcquireRelease:\n    terminates in hot state Acquired(2, 300)']
 
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

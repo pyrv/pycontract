@@ -34,10 +34,6 @@ Auxiliary types.
 """
 Char = str
 
-"""
-
-"""
-
 
 class Debug:
     """
@@ -385,58 +381,64 @@ class AlwaysState(State):
 
 class ErrorState(State):
     """
-    A transition can return an `ErrorState` object, including an error message.
+    A transition can return an `ErrorState` object, including an error message and a data object.
     This will cause the error to be recorded. The `ErrorState` itself is removed
     from the state vector after processing.
     """
 
-    def __init__(self, msg: str = ""):
+    def __init__(self, text: str, obj: object):
         """
-        The `ErrorState` can be initialized with an error message, by default
-        the empty string.
-        :param msg: the error message.
+        The `ErrorState` is initialized with a message and a data object, which
+        can be any Python object, such as a class instance, a dictionary, etc.
+        :param text: the message.
+        :param obj: the data object
         """
-        self.message = msg
+        self.text = text
+        self.obj = obj
 
     def __str__(self) -> str:
-        return f'ErrorState({self.message})'
+        return f'ErrorState({self.text})'
 
 
-def error(msg: str = "") -> ErrorState:
+def error(text: str = "", obj: object = None) -> ErrorState:
     """
-    Returns an `ErrorState`, with or without a message.
-    :param msg: the message.
+    Returns an `ErrorState`.
+    :param text: the message.
+    :param obj: the data object.
     :return: an `ErrorState` object.
     """
-    return ErrorState(msg)
+    return ErrorState(text, obj)
 
 
 class InfoState(State):
     """
-    A transition can return an `InfoState` object, including a message.
+    A transition can return an `InfoState` object, including a message and a data object.
     This is for just recording facts about the trace. The `InfoState` itself is removed
     from the state vector after processing.
     """
 
-    def __init__(self, msg: str):
+    def __init__(self, text: str, obj: object):
         """
-        The `InfoState` is initialized with a message, which has to be provided
-        (no default value).
-        :param msg: the message.
+        The `InfoState` is initialized with a message and a data object, which
+        can be any Python object, such as a class instance, a dictionary, etc.
+        :param text: the message.
+        :param obj: the data object
         """
-        self.message = msg
+        self.text = text
+        self.obj = obj
 
     def __str__(self) -> str:
-        return f'InfoState({self.message})'
+        return f'InfoState({self.text})'
 
 
-def info(msg: str) -> InfoState:
+def info(text: str, obj: object = None) -> InfoState:
     """
     Returns an `InfoState`, with a message.
-    :param msg: the message.
+    :param text: the message.
+    :param obj: the data object.
     :return: an InfoState object.
     """
-    return InfoState(msg)
+    return InfoState(text, obj)
 
 
 
@@ -609,6 +611,20 @@ def mk_state_vector(arg: State | List[State]) -> List[State]:
         return [arg]
 
 
+class Message:
+    """
+    The type of messages stored in a monitor, generated when errors are detected
+    with calls of the `error` method or information is generated with
+    with calls of the `info` method.
+    """
+    def __init__(self, text: str, state: ErrorState | InfoState):
+        self.text = text
+        self.state = state
+
+    def __str__(self):
+        return self.text
+
+
 class Monitor:
     """
     Any user defined monitor class must extend this class. It defines a monitor.
@@ -771,9 +787,9 @@ class Monitor:
                 if isinstance(target_state, OkState):
                     pass
                 elif isinstance(target_state, ErrorState):
-                    self.report_transition_error(source_state, event, target_state.message)
+                    self.report_transition_error(source_state, event, target_state)
                 elif isinstance(target_state, InfoState):
-                    self.report_transition_information(source_state, event, target_state.message)
+                    self.report_transition_information(source_state, event, target_state)
                 else:
                     self.add_state_to_state_vector(states_to_add, target_state)
         if transition_triggered:
@@ -841,63 +857,65 @@ class Monitor:
         state.set_monitor_to(self)
         states.add(state)
 
-    def report_transition_error(self, state: State, event: Event, msg: str):
+    def report_transition_error(self, state: State, event: Event, error_state: ErrorState):
         """
         Reports an error caused by taking a transition that results in an ErrorState.
         :param state: the state in which the transition is taken.
         :param event: the event that causes the transition to be taken.
-        :param msg: the error message provided by user.
+        :param error_state: the error state.
         """
         message = f'*** error transition in {self.get_monitor_name()}:\n'
         if self.option_show_state_event:
             message += f'    state {state}\n'
             message += f'    event {self.event_count} {event}\n'
-        message += f'    {msg}'
-        self.messages.append(message)
+        message += f'    {error_state.text}'
+        self.messages.append(Message(message, error_state))
         print(message)
 
-    def report_transition_information(self, state: State, event: Event, msg: str):
+    def report_transition_information(self, state: State, event: Event, info_state: InfoState):
         """
         Reports a message caused by taking a transition that results in an `InfoState`.
         This is not considered as an error necessarily.
         :param state: the state in which the transition is taken.
         :param event: the event that causes the transition to be taken.
-        :param msg: the message provided by user.
+        :param info_state: the info state.
         """
         message = f'--- message from {self.get_monitor_name()}:\n'
-        message += f'    {msg}'
-        self.messages.append(message)
+        message += f'    {info_state.text}'
+        self.messages.append(Message(message, info_state))
         print(message)
 
-    def report_end_error(self, msg: str):
+    def report_end_error(self, text: str):
         """
         Reports a hot state (`HotState`) encountered in the state vector of the monitor
         at the end of monitoring, when the `end()` method is called.
-        :param msg: error message, identifying the hot state.
+        :param text: error message, identifying the hot state.
         """
         message = f'*** error at end in {self.get_monitor_name()}:\n'
-        message += f'    {msg}'
-        self.messages.append(message)
+        message += f'    {text}'
+        self.messages.append(Message(message, None))
         print(message)
 
-    def report_error(self, msg: str):
+    def report_error(self, text: str, obj: object = None):
         """
         Reports an error. Usually called by user when not using state machines.
-        :param msg: error message.
+        :param text: error message.
+        :param obj: a data object.
         """
         message = f'*** error in {self.get_monitor_name()}:\n'
-        message += f'    {msg}'
-        self.messages.append(message)
+        message += f'    {text}'
+        self.messages.append(Message(message, obj))
         print(message)
 
-    def report_information(self, msg: str):
+    def report_information(self, text: str, obj: object = None):
         """
         Reports a message. Usually called by user when not using state machines.
-        :param msg: message.
+        :param text: message.
+        :param obj: data object.
         """
         message = f'--- message from {self.get_monitor_name()}:\n'
-        message += f'    {msg}'
-        self.messages.append(message)
+        message += f'    {text}'
+        self.messages.append(Message(message, obj))
         print(message)
 
     def exists(self, predicate: Callable[[State], bool]) -> bool:
@@ -941,11 +959,19 @@ class Monitor:
             result += monitor.get_message_count()
         return result
 
-    def get_all_messages(self) -> List[str]:
+    def get_all_message_texts(self) -> List[str]:
         """
-        Returns all errors detected by this monitor, including those of sub-monitors
-        (recursively). Each error is represented by an error message.
-        :return: the errors detected by this monitor.
+        Returns all texts of messages recorded by this monitor, including those of sub-monitors
+        (recursively).
+        :return: the message texts recorded by this monitor.
+        """
+        return [msg.text for msg in self.get_all_messages()]
+
+    def get_all_messages(self) -> List[Message]:
+        """
+        Returns all messages recorded by this monitor, including those of sub-monitors
+        (recursively). Each message is represented by a `Message` object.
+        :return: the messages recorded by this monitor.
         """
         result = self.messages.copy()
         for monitor in self.monitors:
@@ -973,7 +999,7 @@ class Monitor:
         print("Analysis result:")
         print("================")
         print()
-        messages = self.get_all_messages()
+        messages = self.get_all_message_texts()
         if messages:
             print(f'{len(messages)} messages!')
             for message in messages:

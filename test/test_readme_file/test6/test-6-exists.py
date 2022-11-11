@@ -91,7 +91,7 @@ class Test2(test.utest.Test):
         m.end()
         errors_expected = [
             "*** error transition in FlexiblePastAcquireRelease:\n    state Always()\n    event 5 Release(thread='arm', lock=13)\n    thread releases un-acquired lock 13"]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

@@ -90,7 +90,7 @@ class Test2(test.utest.Test):
         m.verify(trace)
 
         errors_expected = []
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 
@@ -113,7 +113,7 @@ class Test2(test.utest.Test):
             "*** error transition in Auction:\n    state Listed('Hat', 50, 30)\n    event 4 Bid(item='Hat', amount=20)\n    no transition matching event",
             "*** error transition in Auction:\n    state Listed('Car', 5000, 4000)\n    event 7 Sell(item='Car')\n    no transition matching event"]
 
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

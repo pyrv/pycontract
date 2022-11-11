@@ -104,7 +104,7 @@ class Test2(test.utest.Test):
             "*** error transition in PastAcquireRelease:\n    state Start()\n    event 4 Release(thread='arm', lock=14)\n    thread arm releases un-acquired lock 14",
             "*** error at end in PastAcquireRelease:\n    terminates in hot state Locked('wheel', 12)"]
 
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

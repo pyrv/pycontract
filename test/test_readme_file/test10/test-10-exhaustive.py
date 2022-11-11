@@ -120,7 +120,7 @@ class Test2(test.utest.Test):
         errors_expected = [
             "*** error at end in Obligations1:\n    terminates in hot state DoLog('TURN')"
         ]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 
@@ -138,7 +138,7 @@ class Test2(test.utest.Test):
         errors_expected = [
             "*** error at end in Obligations2:\n    terminates in hot state DoCompleteLogClean('TURN')\n    Cases not matched that lead to calls of done() :\n      line 64 : case {'name': 'log', 'cmd': self.cmd}"
         ]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 
@@ -157,7 +157,7 @@ class Test2(test.utest.Test):
         errors_expected = [
                 "*** error transition in Obligations3:\n    state DoCompleteLogClean('TURN')\n    Cases not matched that lead to calls of done() :\n      line 87 : case {'name': 'clean', 'cmd': self.cmd}\n    event 4 {'name': 'fail', 'cmd': 'TURN'}\n    "
             ]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

@@ -142,7 +142,7 @@ class Test2(test.utest.Test):
             "*** error transition in ConditionedAcquireRelease:\n    state Always()\n    event 4 Acquire(thread='arm', lock=122)\n    more that 3 locks acquired",
             "*** error at end in ConditionedAcquireRelease:\n    terminates in hot state Locked('arm', 10)",
             "*** error at end in ConditionedAcquireRelease:\n    terminates in hot state Locked('arm', 121)"]
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
 

@@ -207,7 +207,7 @@ class Test2(test.utest.Test):
         m.verify(trace3)
 
         errors_expected = []
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         # self.assert_equal(errors_expected, errors_actual)
 

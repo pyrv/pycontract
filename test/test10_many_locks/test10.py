@@ -119,6 +119,6 @@ class Test2(test.utest.Test):
          "*** error at end in AcquireRelease:\n    terminates in hot state DoRelease('LOCK_375')",
          "*** error at end in AcquireRelease:\n    terminates in hot state DoRelease('LOCK_43')"]
 
-        errors_actual = m.get_all_messages()
+        errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
