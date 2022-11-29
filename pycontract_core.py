@@ -386,15 +386,15 @@ class ErrorState(State):
     from the state vector after processing.
     """
 
-    def __init__(self, text: str, obj: object):
+    def __init__(self, text: str, data: object):
         """
         The `ErrorState` is initialized with a message and a data object, which
         can be any Python object, such as a class instance, a dictionary, etc.
         :param text: the message.
-        :param obj: the data object
+        :param data: the data object
         """
         self.text = text
-        self.obj = obj
+        self.data = data
 
     def __str__(self) -> str:
         return f'ErrorState({self.text})'
@@ -417,15 +417,15 @@ class InfoState(State):
     from the state vector after processing.
     """
 
-    def __init__(self, text: str, obj: object):
+    def __init__(self, text: str, data: object):
         """
         The `InfoState` is initialized with a message and a data object, which
         can be any Python object, such as a class instance, a dictionary, etc.
         :param text: the message.
-        :param obj: the data object
+        :param data: the data object
         """
         self.text = text
-        self.obj = obj
+        self.data = data
 
     def __str__(self) -> str:
         return f'InfoState({self.text})'
@@ -617,9 +617,9 @@ class Message:
     with calls of the `error` method or information is generated with
     with calls of the `info` method.
     """
-    def __init__(self, text: str, state: ErrorState | InfoState):
+    def __init__(self, text: str, data: object):
         self.text = text
-        self.state = state
+        self.data = data
 
     def __str__(self):
         return self.text
@@ -864,13 +864,13 @@ class Monitor:
         :param event: the event that causes the transition to be taken.
         :param error_state: the error state.
         """
-        message = f'*** error transition in {self.get_monitor_name()}:\n'
+        text = f'*** error transition in {self.get_monitor_name()}:\n'
         if self.option_show_state_event:
-            message += f'    state {state}\n'
-            message += f'    event {self.event_count} {event}\n'
-        message += f'    {error_state.text}'
-        self.messages.append(Message(message, error_state))
-        print(message)
+            text += f'    state {state}\n'
+            text += f'    event {self.event_count} {event}\n'
+        text += f'    {error_state.text}'
+        self.messages.append(Message(text, error_state.data))
+        print(text)
 
     def report_transition_information(self, state: State, event: Event, info_state: InfoState):
         """
@@ -880,10 +880,10 @@ class Monitor:
         :param event: the event that causes the transition to be taken.
         :param info_state: the info state.
         """
-        message = f'--- message from {self.get_monitor_name()}:\n'
-        message += f'    {info_state.text}'
-        self.messages.append(Message(message, info_state))
-        print(message)
+        text = f'--- message from {self.get_monitor_name()}:\n'
+        text += f'    {info_state.text}'
+        self.messages.append(Message(text, info_state.data))
+        print(text)
 
     def report_end_error(self, text: str):
         """
@@ -986,6 +986,8 @@ class Monitor:
         result = len(self.states)
         for (idx, states) in self.states_indexed.items():
             result += len(states)
+        for monitor in self.monitors:
+            result += monitor.number_of_states()
         return result
 
     def print_summary(self):
