@@ -1,0 +1,16 @@
+@startuml
+state Commands{
+  [*] -> __Always__
+  state __Always__ #green
+  state DoComplete #yellow : cmd : str\nnr : int\ntime : int
+  state Executed : nr : int
+  __Always__ --> DoComplete : **{'name': 'dispatch', 'cmd': c, 'nr': n, 'time': t}**\n--->\n(c,n,t)
+  state error #red
+  DoComplete --> error : 1 **{'name': 'fail', 'cmd': self.cmd, 'nr': self.nr}**
+  state error #red
+  DoComplete --> error : 2 **{'time': t}**\nt - self.time > 3000
+  DoComplete --> Executed : 3 **{'name': 'complete', 'cmd': self.cmd, 'nr': self.nr}**\n--->\n(self.nr)
+  state error #red
+  Executed --> error : **{'name': 'complete', 'nr': self.nr}**
+}
+@enduml
