@@ -35,7 +35,7 @@ In the following, we shall illustrate the API by going through a collection of e
 - do a `git clone https://github.com/pyrv/pycontract.git` in a directory `DIR`of choice. This will create a directory `pycontract` in `DIR`.
 - Set your PYTHONPATH variable to point to pycontract as e.g.:
 ```
-export PYTHONPATH=$PYTHONPATH:DIR/pycontract
+export PYTHONPATH=$PYTHONPATH:$DIR/pycontract
 ```
 
 - Some Python packages may need to be installed on your machine, e.g.: `pyfiglet` and `xlrd`. This can for example be done as follows:
