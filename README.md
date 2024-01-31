@@ -38,7 +38,7 @@ In the following, we shall illustrate the API by going through a collection of e
 export PYTHONPATH=$PYTHONPATH:$DIR/pycontract
 ```
 
-- Some Python packages may need to be installed on your machine, e.g.: `pyfiglet` and `xlrd`. This can for example be done as follows:
+- Some Python packages may need to be installed on your machine, e.g.:
 
 ```
 python -m pip install "pyfiglet"
