@@ -33,10 +33,8 @@ In the following, we shall illustrate the API by going through a collection of e
  
 ## Installation 
 
-- Python 3.10: The API uses Python 3.10's pattern matching. You will therefore need to install Python 3.10. Python 3.10 is experimental, but will eventually become the public release (expected release: October 2021).
-
+- Python 3.10: The API uses Python 3.10's pattern matching. You will therefore need to install Python 3.10 or later.
 - Set your PYTHONPATH variable to point to pycontract as e.g.:
-
 ```
 export PYTHONPATH=$PYTHONPATH:/a/long/path/pycontract
 ```
