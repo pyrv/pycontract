@@ -47,10 +47,14 @@ python -m pip install "xlrd"
 
 ## Import PyContract
 
-Import PyContract as follows:
+Import PyContract in a Python module as follows:
 
 ```\python
 from pycontract import *
+
+# You are now ready to write monitors.
+
+...
 ```
   
 ## Basic Example
