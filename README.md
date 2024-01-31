@@ -31,7 +31,7 @@ In the following, we shall illustrate the API by going through a collection of e
  
 ## Installation 
 
-- Python 3.10 or later: The API uses Python pattern matching that was introduced in Python 3.10. You will therefore need to install Python 3.10 or later.
+- Python 3.10 or later: PyContract uses pattern matching that was introduced in Python 3.10. You will therefore need to install Python 3.10 or later.
 - Set your PYTHONPATH variable to point to pycontract as e.g.:
 ```
 export PYTHONPATH=$PYTHONPATH:/a/long/path/pycontract
