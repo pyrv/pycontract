@@ -202,7 +202,7 @@ if __name__ == '__main__':
         Acquire('T1', 2),
         Release('T1', 2)
     ]
-    m = M3()
+    m = M1()
     m.verify(trace)
 
 

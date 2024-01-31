@@ -52,7 +52,7 @@ class CommandExecution(Monitor):
                         return error(f'{self.cmd} completion takes too long')
 
 
-def converter(line: List[str]) -> Event:
+def converter(line: list[str]) -> Event:
     match line[0]:
         case "CMD_DISPATCH":
             return Dispatch(time=int(line[1]), cmd=line[2])

@@ -854,7 +854,6 @@ class Monitor:
         :param states: the state vector to add state to.
         :param state: the state to become initial states.
         """
-        print(f'---> {state}')
         state.set_monitor_to(self)
         states.add(state)
 
