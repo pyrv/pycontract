@@ -45,9 +45,6 @@ python -m pip install "pyfiglet"
 python -m pip install "xlrd"
 ```
 
-- PyContract generates visualizations of state machines in PlantUML. For this you need the PlantUML jar file: [lib/plantuml.jar](lib/plantuml.jar), also available here: 
-[https://plantuml.com/download](https://plantuml.com/download)
-
 - The main Python files are: 
   * [pycontract-core.py](pycontract_core.py) - the core engine
   * [pycontract-csv.py](pycontract-csv.py) - reading of XLS and CSV files
