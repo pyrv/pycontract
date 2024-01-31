@@ -42,30 +42,84 @@ export PYTHONPATH=$PYTHONPATH:$DIR/pycontract
 
 ```
 python -m pip install "pyfiglet"
+python -m pip install "pandas"
 python -m pip install "xlrd"
 ```
 
-## Import PyContract
+## Test Installation
 
-Import PyContract in a Python module as follows:
-
-```\python
-from pycontract import *
-
-# You are now ready to write monitors.
-
-...
 ```
-  
+cd $DIR/pycontract/demo
+python test21_dictionaries.py
+```
+
+This should yield the following output:
+
+```
+*** error transition in Commands:
+    state DoComplete(1000, 'TURN', '1')
+    event 5 {'op': 'COMPLETE', 'time': 5000, 'cmd': 'TURN', 'nr': '1'}
+    TURN 1 completion takes too long
+*** error transition in Commands:
+    state DoComplete(7000, 'SEND', '4')
+    event 8 {'op': 'DISPATCH', 'time': 8000, 'cmd': 'SEND', 'nr': '4'}
+    SEND 4 dispatched more than once
+*** error transition in Commands:
+    state Completed('THRUST', '3')
+    event 9 {'op': 'COMPLETE', 'time': 9000, 'cmd': 'THRUST', 'nr': '3'}
+    THRUST already completed
+
+Terminating monitoring!
+
+++++++++++++++++++++++++++++
+Terminating monitor Commands
+++++++++++++++++++++++++++++
+
+*** error at end in Commands:
+    terminates in hot state DoComplete(8000, 'SEND', '4')
+
+================
+Analysis result:
+================
+
+4 messages!
+
+*** error transition in Commands:
+    state DoComplete(1000, 'TURN', '1')
+    event 5 {'op': 'COMPLETE', 'time': 5000, 'cmd': 'TURN', 'nr': '1'}
+    TURN 1 completion takes too long
+
+*** error transition in Commands:
+    state DoComplete(7000, 'SEND', '4')
+    event 8 {'op': 'DISPATCH', 'time': 8000, 'cmd': 'SEND', 'nr': '4'}
+    SEND 4 dispatched more than once
+
+*** error transition in Commands:
+    state Completed('THRUST', '3')
+    event 9 {'op': 'COMPLETE', 'time': 9000, 'cmd': 'THRUST', 'nr': '3'}
+    THRUST already completed
+
+*** error at end in Commands:
+    terminates in hot state DoComplete(8000, 'SEND', '4')
+```
+
 ## Basic Example
 
 We shall now illustrate a complete runnable example. 
 
 Consider the monitoring of acquisition and release of locks by threads. We shall monitor a sequence of events, where each event indicates either the acquisition of a lock by a thread, or the release of a lock by a thread. We can then formulate various policies about such acquisitions and releases as monitors.
 
+### Importing PyContract
+
+First we need to import PyContract:
+
+```python
+from pycontract import *
+```
+
 ### Events
 
-Let us start by modeling the type of events:
+Let us then define the type of events:
 
 ```python
 @data

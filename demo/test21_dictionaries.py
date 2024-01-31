@@ -16,8 +16,6 @@ class Commands(Monitor):
 
         def transition(self, event):
             match event:
-                case {'op': 'WARNING'}:
-                    print('warning')
                 case {'op': 'COMPLETE', 'time': time, 'cmd': self.cmd, 'nr': self.nr}:
                     if time - self.time <= 3000:
                         return Commands.Completed(self.cmd, self.nr)
