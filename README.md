@@ -4,8 +4,6 @@ Version 1.0.1
 
 PyContract is an internal Python DSL for writing event stream monitors. It is based on state machines but extends them in two fundamental ways. First, in addition to control states the user can also define variables, updated and queried on transitions (what is also called extended finite state machines). Second, states can be parameterized with data. The underlying concept is that at any point during monitoring there is a set of _active states_, also referred to as the _"state vector"_. States can be added to this set by taking state to state transitions (target states are added), and can be removed from this vector by leaving states as a result of transitions. Each state in the vector can itself monitor the incoming event stream. The user can mix state machines with regular Python code as desired. 
 
-The DSL is a Python version of the Scala DSL [Daut](https://github.com/havelund/daut).
-
 The general idea is to create a monitor as a class sub-classing the `Monitor` class, create an instance of it, and then feed it with events with the `eval(event: Event)` method, one by one, and in the case of a finite sequence of observations, finally calling the `end()` method on it. If `end()` is called, it will be determined whether there are any outstanding obligations that have not been satisfied (expected events that did not occur).
 
 This can schematically be illustrated as follows:
@@ -1684,3 +1682,8 @@ The visualization of this state machine is as follows.
 
 ### END OF FILE
 
+## Contributions
+
+PyContract was developed by Klaus Havelund (<klaus.havelund@jpl.nasa.gov>) 
+based on ideas implemented in the similar Scala DSL [Daut](https://github.com/havelund/daut).
+The project was a result of extended discussions with Sean Kauffman and Dennis Dams.
