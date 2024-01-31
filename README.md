@@ -45,14 +45,13 @@ python -m pip install "pyfiglet"
 python -m pip install "xlrd"
 ```
 
-- The main Python files are: 
-  * [pycontract-core.py](pycontract_core.py) - the core engine
-  * [pycontract-csv.py](pycontract-csv.py) - reading of XLS and CSV files
-  * [pycontract-time.py](pycontract-time.py) - handling of datetime
-  * [pycontract-plantuml.py](pycontract_plantuml.py) - visualization of state machines
-  * [pycontract.py](pycontract.py) - simply imports the files above
+## Import PyContract
 
-  Import `pycontract.py` in your project as follows: `from pycontract import *`.
+Import PyContract as follows:
+
+```\python
+from pycontract import *
+```
   
 ## Basic Example
 
