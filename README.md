@@ -50,7 +50,7 @@ python -m pip install "xlrd"
 
 ```
 cd $DIR/pycontract/demo
-python test21_dictionaries.py
+python demo_using_dictionaries.py
 ```
 
 This should yield the following output:
