@@ -100,7 +100,6 @@ class CSVSource:
 
     def __enter__(self):
         names = self.column_names()
-        print(f'--> {names}')
         if names is None:
             self.csv_reader = csv.DictReader(self.csv_file)
         else:
