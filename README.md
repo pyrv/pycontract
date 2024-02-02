@@ -1,6 +1,6 @@
 # PyContract
 
-Version 1.0.1
+Version 1.2
 
 PyContract is an internal Python DSL for writing event stream monitors. It is based on state machines but extends them in two fundamental ways. First, in addition to control states the user can also define variables, updated and queried on transitions (what is also called extended finite state machines). Second, states can be parameterized with data. The underlying concept is that at any point during monitoring there is a set of _active states_, also referred to as the _"state vector"_. States can be added to this set by taking state to state transitions (target states are added), and can be removed from this vector by leaving states as a result of transitions. Each state in the vector can itself monitor the incoming event stream. The user can mix state machines with regular Python code as desired. 
 
@@ -1629,9 +1629,19 @@ The visualization of this state machine is as follows.
 
 ## Getting Events from a CSV file
 
-A common application of PyContract will be log analysis. Log files can have any format, one just needs to write a parser, that parses a log file and generates events to be monitored. PyContract provides built-in support for parsing [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) (Comma Separated Value format) files.  Each line in a CSV file is called a row, and consists of a list of comma separated strings. An example is the following CSV file concerning command dispatches and completions (related to a previously shown example).
+A common application of PyContract will be log analysis. 
+Log files can have any format, one just needs to write a parser, 
+that parses a log file and generates events to be monitored. 
+PyContract provides built-in support 
+for parsing [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) (Comma Separated Value format) 
+files.  Each line in a CSV file consists of a list of comma 
+separated strings. An example is the following CSV file concerning command 
+dispatches and completions (related to a previously shown example). It has a first
+header line, naming the columns `OP`, `TIME`, and `CMD`. These can then be used as indexes into
+a line, as we shall see.
 
 ```
+OP,TIME,CMD
 CMD_DISPATCH,1000,TURN
 CMD_DOWNLOAD,1500,STOP
 CMD_DISPATCH,4000,THRUST
@@ -1640,21 +1650,27 @@ ALIEN,ENCOUNTERED
 CMD_COMPLETE,6000,THRUST
 ```
 
-PyContract provide a class for reading events from such a CSV file:
+PyContract provides the following class for reading events from such a CSV file:
 
 ```python
-class CSVReader:
-    def __init__(self, file: str, converter: Callable[[List[str]], object]):
-        ....
-    ....
+class CSVSource:
+    def __init__(self, file: str): 
+        ...
+    
+    def column_names(self) -> Optional[List[str]]:
+        return None
+    
+    ...
 ```
 
-An instatiation of the class takes two arguments:
-
-- the name of the CSV file to parse.
-- a function that as input takes a row in the CSV file, represented as a list of strings, and returns an event to be monitored.
-
-The object returned by instatiating the `CVSReader` class is an iterator over events, which e.g. can be iterated over in a **for** loop.
+An instantiation of the class takes the CSV file name as argument. 
+The object returned by instatiating the `CVSSource` class is an iterator 
+over events, which e.g. can be iterated over in a **for** loop, as shown below.
+The default use of the class is to parse a CSV file with a first header line naming the columns
+(as is common in CSV files, and is shown in the above example CSV file). 
+If the CSV file does not contain a header, the user should subclass this class
+and override the `column_names` to return a list of column names to be used in the
+monitor.
 
 ### The Property
 
@@ -1664,7 +1680,8 @@ The property we want to monitor is the following:
 
 ### The Monitor
 
-We shall show all the required code below, illustrating a complete example.
+We shall show all the required code below, illustrating a complete example. 
+First we define the events.
 
 ```python
 from pycontract import *
@@ -1680,15 +1697,27 @@ class Dispatch(Event):
 @data
 class Complete(Event):
     cmd: str
+```
 
+A converter function is then defined, which translates lines in the CSV file to events:
 
+```python
+def convert(line) -> Event:
+    match line["OP"]:
+        case "CMD_DISPATCH":
+            return Dispatch(time=int(line["TIME"]), cmd=line["CMD"])
+        case "CMD_COMPLETE":
+            return Complete(time=int(line["TIME"]), cmd=line["CMD"])
+```
+
+The monitor itself is defined as follows.
+
+```python
 class CommandExecution(Monitor):
-    @initial
-    class Always(AlwaysState):
-        def transition(self, event):
-            match event:
-                case Dispatch(time, cmd):
-                    return self.DoComplete(time, cmd)
+    def transition(self, event):
+        match event:
+            case Dispatch(time, cmd):
+                return self.DoComplete(time, cmd)
 
     @data
     class DoComplete(HotState):
@@ -1702,27 +1731,18 @@ class CommandExecution(Monitor):
                         return ok
                     else:
                         return error(f'{self.cmd} completion takes too long')
+```
 
+In the main program, we combine the above components.
 
-# The converter funtion translating rows to events:
-
-def converter(line: List[str]) -> Event:
-    match line[0]:
-        case "CMD_DISPATCH":
-            return Dispatch(time=int(line[1]), cmd=line[2])
-        case "CMD_COMPLETE":
-            return Complete(time=int(line[1]), cmd=line[2])
-        # for events that do not match None is returned
-
+```python
 if __name__ == '__main__':
     m = CommandExecution()
-    set_debug(True)
-    csv_reader = CSVReader('commands.csv', converter) # <--- log reader
-    for event in csv_reader:
-        if event is not None: # 
-            m.eval(event)
-    m.end()
-    csv_reader.close()
+    with CSVSource("commands.csv") as csv_reader:
+        for event in csv_reader:
+            if event is not None:
+                m.eval(convert(event))
+        m.end()
 ```
 
 ### Visualization
