@@ -1,3 +1,4 @@
+from typing import Optional
 
 from pycontract import *
 
@@ -52,21 +53,28 @@ class Commands(Monitor):
                     return error(f'{self.cmd} already completed')
 
 
-def converter(line: list[str]) -> Event:
-    match line[0]:
+class CSV(CSVSource):
+    def __init__(self, file_name: str):
+        super().__init__(file_name)
+
+    def column_names(self) -> Optional[list[str]]:
+        return ['op', 'time', 'cmd', 'nr']
+
+
+def convert(line: list[str]) -> Event:
+    match line['op']:
         case "DISPATCH":
-            return Dispatch(time=int(line[1]), cmd=line[2], nr=line[3])
+            return Dispatch(time=int(line['time']), cmd=line['cmd'], nr=line['nr'])
         case "COMPLETE":
-            return Complete(time=int(line[1]), cmd=line[2], nr=line[3])
+            return Complete(time=int(line['time']), cmd=line['cmd'], nr=line['nr'])
 
 
 if __name__ == '__main__':
     m = Commands()
-    csv_reader = CSVReader('commands.csv', converter)
-    for event in csv_reader:
-        if event is not None:
-            m.eval(event)
-    m.end()
-    csv_reader.close()
+    with CSV('commands.csv') as csv_reader:
+        for event in csv_reader:
+            if event is not None:
+                m.eval(convert(event))
+        m.end()
 
 

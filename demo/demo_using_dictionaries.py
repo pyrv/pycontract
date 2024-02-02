@@ -1,4 +1,5 @@
-from typing import Optional, List
+
+from typing import Optional
 
 from pycontract import *
 
@@ -11,14 +12,14 @@ class Commands(Monitor):
 
     @data
     class DoComplete(HotState):
-        time: int
+        time: str
         cmd: str
-        nr: int
+        nr: str
 
         def transition(self, event):
             match event:
                 case {'op': 'COMPLETE', 'time': time, 'cmd': self.cmd, 'nr': self.nr}:
-                    if time - self.time <= 3000:
+                    if int(time) - int(self.time) <= 3000:
                         return Commands.Completed(self.cmd, self.nr)
                     else:
                         return error(f'{self.cmd} {self.nr} completion takes too long')
@@ -36,17 +37,18 @@ class Commands(Monitor):
                     return error(f'{self.cmd} already completed')
 
 
-def converter(line: list[str]) -> dict:
-    return {'op': line[0], 'time': int(line[1]), 'cmd': line[2], 'nr': line[3]}
+class CSV(CSVSource):
+    def __init__(self, file_name: str):
+        super().__init__(file_name)
+
+    def column_names(self) -> Optional[list[str]]:
+        return ['op', 'time', 'cmd', 'nr']
 
 
 if __name__ == '__main__':
     m = Commands()
-    csv_reader = CSVReader('commands.csv', converter)
-    for event in csv_reader:
-        if event is not None:
-            m.eval(event)
-    m.end()
-    csv_reader.close()
-
-
+    with CSV('commands.csv') as csv_reader:
+        for event in csv_reader:
+            if event is not None:
+                m.eval(event)
+        m.end()

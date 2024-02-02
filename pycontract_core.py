@@ -544,7 +544,7 @@ def exhaustive(transition_function: Callable[[object, Event], Optional[List[Stat
     index_frame_below_current = 1  # 0 is the top frame
     index_line_nr_of_call = 2  # call of decorator function `exhaustive`.
     # line number of first line of transition function definition
-    line_number = inspect.stack()[index_frame_below_current][index_line_nr_of_call]
+    line_number = inspect.stack()[index_frame_below_current][index_line_nr_of_call] + 1
     (code, nr_of_lines) = inspect.getsourcelines(transition_function)
     # code includes decorator which must be removed.
     code_except_decorator = code[1:]
