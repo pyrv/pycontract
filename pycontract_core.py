@@ -493,6 +493,7 @@ class MatchObligations:
         true and `empty()` returns false will remaining unmatched case statements be printed.
         """
         self.remove_called: bool = False
+        self.removed: set[int] = set()
 
     def add(self, line_nr_done: int, line_nr_pattern: int, pattern: str):
         """
@@ -510,7 +511,11 @@ class MatchObligations:
         :param line_nr_done: line number of the call of `done()`.
         """
         self.remove_called = True
-        del self.calls_of_done_map[line_nr_done]
+        if line_nr_done in self.calls_of_done_map:
+            del self.calls_of_done_map[line_nr_done]
+            self.removed.add(line_nr_done)
+        else:
+            assert line_nr_done in self.removed
 
     def empty(self) -> bool:
         """
