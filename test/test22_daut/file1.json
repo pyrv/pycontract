@@ -1,0 +1,9 @@
+[
+  {"id" :  "dispatch", "task_id" :  1, "cmd_nr" : 1, "cmd_type": "START", "args":  [1,2,3]},
+  {"id" :  "reply",   "task_id" :  1, "cmd_nr" : 1, "cmd_type": "START"},
+  {"id" :  "complete", "task_id" :  1, "cmd_nr" : 1, "cmd_type": "START", "data":  {"time":  10, "memory":  100}},
+  {"id" :  "dispatch", "task_id" :  2, "cmd_nr" : 1, "cmd_type": "START", "args":  [4,5,6]},
+  {"id" :  "reply",   "task_id" :  2, "cmd_nr" : 1, "cmd_type": "START"},
+  {"id" :  "complete", "task_id" :  2, "cmd_nr" : 1, "cmd_type": "START", "data":  {"time":  20, "memory":  200}},
+  {"id" :  "complete", "task_id" :  2, "cmd_nr" : 1, "cmd_type": "START", "data":  {"time":  20, "memory":  200}}
+]

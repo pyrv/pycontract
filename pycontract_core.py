@@ -995,6 +995,13 @@ class Monitor:
             result += monitor.number_of_states()
         return result
 
+    def errors_found(self) -> bool:
+        """
+        Returns True if errors have been found.
+        :return: True if errors have been found.
+        """
+        return self.get_message_count() > 0
+
     def print_summary(self):
         """
         Prints a summary of all messages reported by this monitor,
