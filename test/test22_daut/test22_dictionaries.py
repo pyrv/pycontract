@@ -72,6 +72,7 @@ class CommandMonitor(Monitor):
 
 
 if __name__ == '__main__':
+    # visualize(__file__, True)
     filePath = "file1.json"
     trace = parse_json_file(filePath)
     monitor = CommandMonitor()

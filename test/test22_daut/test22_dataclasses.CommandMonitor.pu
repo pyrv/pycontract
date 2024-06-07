@@ -1,0 +1,16 @@
+@startuml
+state CommandMonitor{
+  [*] -> __Always__
+  state __Always__ #green
+  state DoReply #yellow : task_id : int\ncmd_nr : int
+  state DoComplete #yellow : task_id : int\ncmd_nr : int
+  state DoNotComplete : task_id : int\ncmd_nr : str
+  __Always__ --> DoReply : **Dispatch(task_id, cmd_nr, 'START')**\n--->\n(task_id,cmd_nr)
+  state error #red
+  DoReply --> error : 1 **Dispatch(self.task_id, self.cmd_nr, _)**
+  DoReply --> DoComplete : 2 **Reply(self.task_id, _, _)**\n--->\n(self.task_id,self.cmd_nr)
+  DoComplete --> DoNotComplete : **Complete(self.task_id, self.cmd_nr, 'START')**\n--->\n(self.task_id,self.cmd_nr)
+  state error #red
+  DoNotComplete --> error : **Complete(self.task_id, self.cmd_nr, 'START')**
+}
+@enduml
