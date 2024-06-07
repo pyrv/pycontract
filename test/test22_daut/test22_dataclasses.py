@@ -8,7 +8,7 @@ JsonObj = dict[str, object]
 # JSON Parsing #
 ################
 
-def parseJsonEvent(d: JsonObj) -> Event:
+def parse_json_event(d: JsonObj) -> Event:
     match d["id"]:
         case "dispatch":
             return Dispatch(d["task_id"], d["cmd_nr"], d["cmd_type"])
@@ -20,12 +20,12 @@ def parseJsonEvent(d: JsonObj) -> Event:
             return Other(d)
 
 
-def parseJsonFile(file_path: str) -> list[Event]:
+def parse_json_file(file_path: str) -> list[Event]:
     trace: list[Event] = []
     with open(file_path, 'r') as file:
         data = json.load(file)
         for d in data:
-            trace.append(parseJsonEvent(d))
+            trace.append(parse_json_event(d))
     return trace
 
 
@@ -120,7 +120,7 @@ class CommandMonitor(Monitor):
 
 if __name__ == '__main__':
     filePath = "file1.json"
-    trace = parseJsonFile(filePath)
+    trace = parse_json_file(filePath)
     monitor = CommandMonitor()
     monitor.verify(trace)
 

@@ -2,6 +2,7 @@
 import json
 from pycontract import *
 
+
 JsonObj = dict[str, object]
 
 
@@ -9,19 +10,7 @@ JsonObj = dict[str, object]
 # JSON Parsing #
 ################
 
-def parseJsonEvent(d: JsonObj) -> Event:
-    match d["id"]:
-        case "dispatch":
-            return Dispatch(d["task_id"], d["cmd_nr"], d["cmd_type"])
-        case "reply":
-            return Reply(d["task_id"], d["cmd_nr"], d["cmd_type"])
-        case "complete":
-            return Complete(d["task_id"], d["cmd_nr"], d["cmd_type"])
-        case _:
-            return Other(d)
-
-
-def parseJsonFile(file_path: str) -> list[Event]:
+def parse_json_file(file_path: str) -> list[JsonObj]:
     with open(file_path, 'r') as file:
         trace = json.load(file)
     return trace
@@ -84,7 +73,7 @@ class CommandMonitor(Monitor):
 
 if __name__ == '__main__':
     filePath = "file1.json"
-    trace = parseJsonFile(filePath)
+    trace = parse_json_file(filePath)
     monitor = CommandMonitor()
     monitor.verify(trace)
 
