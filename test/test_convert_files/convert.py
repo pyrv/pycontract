@@ -24,7 +24,7 @@ class Failure(Event):
     pass
 
 
-def converter(line: List[str]) -> Event:
+def converter(line: list[str]) -> Event:
     match line[0]:
         case "CMD_DISPATCH":
             return Dispatch(time=line[2], cmd=line[1])
@@ -38,7 +38,7 @@ def converter(line: List[str]) -> Event:
 
 time_counter: int = 0
 lock_counter: int = 0
-locks: Dict[str,int] = {}
+locks: dict[str,int] = {}
 
 
 def lookup_lock(cmd: str) -> int:

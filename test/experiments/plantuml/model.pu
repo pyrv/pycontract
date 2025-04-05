@@ -1,0 +1,54 @@
+@startuml
+state "DriveTask monitor" as DriveTask #lightblue{
+  [*] -> start
+
+  state "Handling DispatchRequest" as A #lightgray {
+    state start #green
+    state error #red
+    state s2
+    state s3 #yellow
+    state s4 #yellow
+    state s5 #yellow
+    state s6 #yellow
+  }
+  state "DriveEnded states" as B #lightgray {
+    state DriveEnded : id : Int\nwp : Int
+    state s7
+    state s8
+    state s9
+    state s10 #yellow
+  }
+
+  state "WaitForEnd states" as C #lightgray {
+    state WaitForEnd : id : Int\nwp : Int\nreason : Controller
+    state s11 #yellow
+    state s12
+  }
+
+  start --> start : NavigationOdometry
+  start --> s2 : DispatchRequest
+  s2 --> error : DispatchRequest
+  s2 --> s3 : NavigatorCommand
+  s3 --> s4 : DispatchReply
+  s4 --> DriveEnded : NavigatorFeedback
+  s2 --> s5 : DispatchReply
+  s5 --> s6 : NavigatorCommand
+  s6 --> DriveEnded : NavigatorFeedback
+
+  DriveEnded --> s7 : DispatchRequest
+  s7 --> s8 : DispatchReply
+  s8 --> WaitForEnd : NavigatorStop
+  s7 --> s9 : NavigatorStop
+  s9 --> WaitForEnd : DispatchReply
+  DriveEnded --> s10 : NavigatorCompletion
+  s10 --> [*] : CommandComplete
+
+  WaitForEnd --> s11 : NavigatorCompletion
+  s11 --> [*] : CommandComplete
+  WaitForEnd --> s12 : CommandComplete
+  s12 --> [*] : NavigatorCompletion
+
+}
+@enduml
+
+

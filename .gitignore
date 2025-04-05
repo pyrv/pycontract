@@ -3,11 +3,4 @@ logs
 test/.DS_Store
 .idea/
 __pycache__/
-test/test-jpl/test4-europa-clipper/evrs_session5857.csv
-test/test-jpl/test4-europa-clipper/eha_session5857.csv
-test/test-jpl/test4-europa-clipper/eha2_rec_session_5726.csv
-test/test-jpl/test4-europa-clipper/eha3_session_5726.csv
-test/test-jpl/test4-europa-clipper/*.log
-test/test-jpl/test4-europa-clipper/*.oracle
-test/test-jpl/test4-europa-clipper/*.png
-test/experiments/anomaly/logs/results-big/logs-big
+test/test-jpl/

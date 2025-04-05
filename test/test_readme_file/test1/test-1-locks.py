@@ -145,11 +145,3 @@ class Test2(test.utest.Test):
         errors_actual = m.get_all_message_texts()
         print(errors_actual)
         self.assert_equal(errors_expected, errors_actual)
-
-
-
-
-
-
-
-
