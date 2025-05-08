@@ -154,7 +154,7 @@ class M4(Monitor):
 
 
 if __name__ == '__main__':
-    # visualize(__file__, True)
+    visualize(__file__, True)
     set_debug(True)
     trace1 = [
         Acquire('T1', 1),
