@@ -14,8 +14,8 @@ from typing import List, Set, Dict, Callable, Optional, Any, Tuple, Iterable, Un
 COLOR_RED = '\033[91m'
 COLOR_MAGENTA = '\033[95m'  # Magenta
 COLOR_GREEN = '\033[92m'
+COLOR_BLUE = '\033[94m'     # Blue
 COLOR_RESET = '\033[0m'
-
 
 
 
@@ -95,16 +95,6 @@ def set_debug_progress(value: int):
     Debug.DEBUG_PROGRESS = value
 
 
-def debug(msg: str):
-    """
-    Prints debugging information. By giving this function a special
-    name it is easier to locate debugging statements.
-    Calls of this function are always guarded by a test on the `DEBUG` flag.
-    :param msg: the message to be printed.
-    """
-    print(msg)
-
-
 def debug_frame(symbol: Char, msg: str):
     """
     Prints a message surrounded by a line of symbols before and after.
@@ -180,7 +170,6 @@ def hasattr_really(obj: object, attr) -> bool:
         return True
     except:
         return False
-
 
 def quote(arg: object) -> object:
     """
@@ -663,6 +652,7 @@ class Message:
 
 
 class Monitor:
+    debug_messages: List[str] = []
     """
     Any user defined monitor class must extend this class. It defines a monitor.
     """
@@ -697,6 +687,9 @@ class Monitor:
         self.event_count: int = 0
         self.option_show_state_event: bool = True
         self.option_print_summary: bool = True
+        if self.is_top_monitor:
+            Monitor.debug_messages.clear()
+
         # Create always state if outermost transitions exist
         outer_transitions = inspect.getmembers(self, predicate=is_transition_method)
         if len(outer_transitions) > 0:
@@ -775,13 +768,13 @@ class Monitor:
           """
         self.event_count += 1
         if Debug.DEBUG_PROGRESS and self.is_top_monitor and self.event_count % Debug.DEBUG_PROGRESS == 0:
-            debug(f'---------------------> {self.event_count}')
+            self.debug(f'---------------------> {self.event_count}')
         if Debug.DEBUG and self.is_top_monitor:
-            debug_frame("=", f'Event {self.event_count} {event}')
+            self.debug(f'==============================\nEvent {self.event_count} {event}\n==============================')
         for monitor in self.monitors:
             monitor.eval(event)
         if Debug.DEBUG:
-            debug_frame("#", f'Monitor {self.get_monitor_name()}')
+            self.debug(f'###############\nMonitor {self.get_monitor_name()}\n###############')
         if self.is_relevant(event):
             index = self.key(event)
             if index is None:
@@ -801,7 +794,7 @@ class Monitor:
                 if new_states is not None:
                     self.states_indexed[index] = new_states
         if Debug.DEBUG:
-            debug(f'\n{self}')
+            self.debug(f'\n{self}')
 
     def eval_states(self, event: Event, states: Set[State]) -> Optional[Set[State]]:
         """
@@ -817,7 +810,7 @@ class Monitor:
         for source_state in states:
             resulting_states = source_state.eval(event)
             if Debug.DEBUG:
-                debug(f'{source_state} results in {mk_string("[",", ","]", resulting_states)}')
+                self.debug(f'{source_state} results in {mk_string("[",", ","]", resulting_states)}')
             transition_triggered = True
             states_to_remove.add(source_state)
             for target_state in resulting_states:
@@ -864,6 +857,7 @@ class Monitor:
         print_frame("+", f'Terminating monitor {self.get_monitor_name()}')
         self._check_hot_states(self.get_all_states())
         if self.is_top_monitor and self.option_print_summary:
+            self.print_debug_summary()
             self.print_summary()
 
     def verify(self, trace: List[Event]):
@@ -994,6 +988,13 @@ class Monitor:
         """
         return any(predicate(state) for state in self.get_all_states())
 
+    def debug(self, msg: str):
+        """
+        Records a debug message.
+        """
+        print(msg)
+        Monitor.debug_messages.append(msg)
+
     def contains_state(self, state: State) -> bool:
         """
         A specialized version of exists, where we just check for whether
@@ -1064,6 +1065,17 @@ class Monitor:
         """
         error_categories = {'safety_violation', 'hot_state_termination'}
         return any(msg.category in error_categories for msg in self.get_all_messages())
+
+    def print_debug_summary(self):
+        if Debug.DEBUG and Monitor.debug_messages:
+            print()
+            print("=================")
+            print("Debug Messages:")
+            print("=================")
+            print()
+            for msg in Monitor.debug_messages:
+                print(f"{COLOR_BLUE}{msg}{COLOR_RESET}")
+            sys.stdout.flush()
 
     def print_summary(self):
         """
