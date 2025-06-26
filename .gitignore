@@ -1,6 +1,11 @@
 logs
 .DS_Store
+build
+install
+log
 test/.DS_Store
 .idea/
+.venv
 __pycache__/
+*.egg-info
 test/test-jpl/

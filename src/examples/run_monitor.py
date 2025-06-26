@@ -83,6 +83,7 @@ class OrMonitor(Monitor):
 
 if __name__ == '__main__':
     set_debug(True)
+    print("run_monitor...")
     m = OrMonitor()
     
     # This trace will cause a safety violation (red) in the second branch
