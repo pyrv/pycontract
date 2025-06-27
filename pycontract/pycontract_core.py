@@ -979,14 +979,58 @@ class Monitor:
         self.messages.append(Message(message, obj))
         print(message)
 
-    def exists(self, predicate: Callable[[State], bool]) -> bool:
+    def exists(self, target: Union[type, str, Callable[[State], bool]], **fields) -> bool:
         """
-        Returns True if there exists a state s in the monitor's state vector, for
-        which predicate(s) is True.
-        :param predicate: the predicate to apply to states in the state vector.
-        :return: True if a state exists in the state vector for which the predicate is True.
+        Overloaded method to check for states.
+
+        Usage 1 (class and fields):
+        exists(cls: Union[type, str], **fields) -> bool
+        Returns True if a state of class `cls` exists (potentially matching `fields`).
+        The class can be provided as a type or a string.
+        This form can be more succinct than using a predicate.
+
+        Usage 2 (predicate):
+        exists(predicate: Callable[[State], bool]) -> bool
+        Returns True if there exists a state `s` in the monitor's state vector
+        for which predicate(s) is True.
+        This form is more expressive.
         """
-        return any(predicate(state) for state in self.get_all_states())
+        # First, validate the arguments to fail fast.
+        is_class_search = isinstance(target, (type, str))
+        is_predicate_search = isinstance(target, Callable) and not fields
+
+        if not (is_class_search or is_predicate_search):
+            raise TypeError("The first argument to 'exists' must be a class, a class name (str), or a predicate (Callable).")
+
+        def search(expr: State) -> bool:
+            # --- Match condition ---
+            match_found = False
+            if is_class_search:
+                cls_match = False
+                if isinstance(target, str):
+                    if expr.__class__.__name__ == target:
+                        cls_match = True
+                elif isinstance(expr, target):
+                    cls_match = True
+                
+                if cls_match:
+                    if all(getattr(expr, k, None) == v for k, v in fields.items()):
+                        match_found = True
+            
+            elif is_predicate_search:
+                if target(expr):
+                    match_found = True
+
+            if match_found:
+                return True
+
+            # --- Recurse ---
+            if isinstance(expr, (AndState, OrState, Sequence)):
+                return any(search(sub) for sub in expr.states)
+            
+            return False
+
+        return any(search(state) for state in self.get_all_states())
 
     def debug(self, msg: str):
         """
