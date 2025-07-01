@@ -264,14 +264,23 @@ class State:
         """
         return self.__class__.__name__
 
-    def exists(self, predicate: Callable[["State"], bool]) -> bool:
+    def exists(self, target: Union[type, str, Callable[[State], bool]], **fields) -> bool:
         """
-        Returns True iff there exists a state s in the state vector of the monitor,
-        such that predicate(s) is True.
-        :param predicate: the predicate which a state in the state vector must satisfy.
-        :return: True iff. a state in the state vector satisfies the predicate.
+        Overloaded method to check for states.
+
+        Usage 1 (class and fields):
+        exists(cls: Union[type, str], **fields) -> bool
+        Returns True if a state of class `cls` exists (potentially matching `fields`).
+        The class can be provided as a type or a string.
+        This form can be more succinct than using a predicate.
+
+        Usage 2 (predicate):
+        exists(predicate: Callable[[State], bool]) -> bool
+        Returns True if there exists a state `s` in the monitor's state vector
+        for which predicate(s) is True.
+        This form is more expressive.
         """
-        return self.monitor.exists(predicate)
+        return self.monitor.exists(target, **fields)
 
     def transition(self, event) -> Optional["State" | List["State"]]:
         """
@@ -325,6 +334,15 @@ class State:
             return ok
         else:
             return error(msg)
+
+    def check(self, b: bool, msg: str = 'Assertion violation'):
+        """
+        A helper method to easily report an error message based on a condition.
+        :param b: the condition to check
+        :param msg: the error message to report
+        """
+        if not b:
+            self.monitor.report_error(msg)
 
     def ok_message(self, msg: str) -> OkState:
         """
@@ -653,6 +671,15 @@ class Message:
 
 class Monitor:
     debug_messages: List[str] = []
+    ended_monitors: Set['Monitor'] = set()
+
+    @classmethod
+    def reset(cls):
+        """
+        Resets the global state of all monitors.
+        """
+        cls.debug_messages = []
+        cls.ended_monitors = set()
     """
     Any user defined monitor class must extend this class. It defines a monitor.
     """
@@ -848,12 +875,25 @@ class Monitor:
         of the verification. The `end()` method is called recursively on sub-monitors,
         so it only needs to be called on the top-most monitor.
         """
+        # Idempotency check: prevent multiple executions and infinite loops.
+        if self in Monitor.ended_monitors:
+            return
+        Monitor.ended_monitors.add(self)
+
         if self.is_top_monitor:
             print()
-            print('Terminating monitoring!')
+            print(f"+++++++++++++++++++++++++++")
+            print(f"Terminating monitor {self.get_monitor_name()}")
+            print(f"+++++++++++++++++++++++++++")
             print()
+            sys.stdout.flush()
+
+        # End sub-monitors and any chained monitors held as attributes.
         for monitor in self.monitors:
             monitor.end()
+        for attr_value in self.__dict__.values():
+            if isinstance(attr_value, Monitor) and attr_value is not self:
+                attr_value.end()
         print_frame("+", f'Terminating monitor {self.get_monitor_name()}')
         self._check_hot_states(self.get_all_states())
         if self.is_top_monitor and self.option_print_summary:
@@ -1032,6 +1072,45 @@ class Monitor:
 
         return any(search(state) for state in self.get_all_states())
 
+    def get_all_messages(self) -> List[Message]:
+        """
+        Recursively collects and returns all messages from this monitor,
+        its sub-monitors, and any chained monitors held as attributes.
+        :return: A list of all messages.
+        """
+        all_msgs = []
+        visited = set()
+
+        def _collect(monitor: Monitor):
+            if monitor in visited:
+                return
+            visited.add(monitor)
+
+            all_msgs.extend(monitor.messages)
+
+            # Recurse through sub-monitors (e.g., from always)
+            for sub_monitor in monitor.monitors:
+                _collect(sub_monitor)
+
+            # Recurse through chained monitors (held as attributes)
+            for attr_value in monitor.__dict__.values():
+                if isinstance(attr_value, Monitor):
+                    _collect(attr_value)
+
+        _collect(self)
+        return all_msgs
+
+    def errors_found(self) -> bool:
+        """
+        Recursively checks and returns True if errors have been found in this
+        monitor or any of its sub-monitors or chained monitors.
+        :return: True if any errors have been found.
+        """
+        for message in self.get_all_messages():
+            if message.category in ['safety_violation', 'hot_state_termination']:
+                return True
+        return False
+
     def debug(self, msg: str):
         """
         Records a debug message.
@@ -1079,17 +1158,6 @@ class Monitor:
         """
         return [msg.text for msg in self.get_all_messages()]
 
-    def get_all_messages(self) -> List[Message]:
-        """
-        Returns all messages recorded by this monitor, including those of sub-monitors
-        (recursively). Each message is represented by a `Message` object.
-        :return: the messages recorded by this monitor.
-        """
-        result = self.messages.copy()
-        for monitor in self.monitors:
-            result += monitor.get_all_messages()
-        return result
-
     def number_of_states(self) -> int:
         """
         Returns number of states stored.
@@ -1101,14 +1169,6 @@ class Monitor:
         for monitor in self.monitors:
             result += monitor.number_of_states()
         return result
-
-    def errors_found(self) -> bool:
-        """
-        Returns True if errors have been found.
-        :return: True if errors have been found.
-        """
-        error_categories = {'safety_violation', 'hot_state_termination'}
-        return any(msg.category in error_categories for msg in self.get_all_messages())
 
     def print_debug_summary(self):
         if Debug.DEBUG and Monitor.debug_messages:
