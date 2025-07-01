@@ -5,7 +5,6 @@ import pycontract as pc
 
 
 """
-Requirements:
 Consider a simple filesystem mechanism that handles several key events. 
 
 create (F)
@@ -15,12 +14,12 @@ read(f: str)
 write(f: str, d: str)
 close(f: str)
 
-1) If data is written to a file, the file must have been opened in write mode, not closed since, 
-and must reside in a folder that has been created and not deleted since. 
-
-2) The total number of bytes written to all files together does not exceed a specified max value.
-
-3) There is a limit on how many bytes can be written to each file.
+Requirements:
+1) A file must be opened in a folder that has been created and not deleted since.
+2) If a file is written to, the file must have been opened in write mode, not closed since.
+3) A file that is opened must eventually be closed.
+4) NOT IMPLEMENTED: The total number of bytes written to all files together must not exceed a specified \texttt{max} value.
+5) The number of bytes written to a file must not exceed the \texttt{size} parameter of the open event.
 """
 
 from pycontract import *
