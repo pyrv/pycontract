@@ -706,6 +706,27 @@ case Release(_, lock) if not self.exists('Locked', lock=lock):
     return error(f'thread releases un-acquired lock {lock}')
 ```
 
+The type and documentation of the `exists` method is as follows:
+
+```python
+ def exists(self, target: Union[type, str, Callable[[State], bool]], **fields) -> bool:
+        """
+        Overloaded method to check for states.
+
+        Usage 1 (class and fields):
+        exists(cls: Union[type, str], **fields) -> bool
+        Returns True if a state of class `cls` exists (potentially matching `fields`).
+        The class can be provided as a type or a string.
+        This form can be more succinct than using a predicate.
+
+        Usage 2 (predicate):
+        exists(predicate: Callable[[State], bool]) -> bool
+        Returns True if there exists a state `s` in the monitor's state vector
+        for which predicate(s) is True.
+        This form is more expressive.
+        """
+```
+
 ### Visualization
 
 The visualization of this state machine is as follows.
