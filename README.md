@@ -699,6 +699,13 @@ case Release(_, lock) if not self.exists(self.Locked(lock=lock)):
     return error(f'thread releases un-acquired lock {lock}')
 ```
 
+The following is even allowed:
+
+```python
+case Release(_, lock) if not self.exists('Locked', lock=lock):
+    return error(f'thread releases un-acquired lock {lock}')
+```
+
 ### Visualization
 
 The visualization of this state machine is as follows.
