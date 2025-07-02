@@ -705,7 +705,7 @@ The visualization of this state machine is as follows.
 
 ## Assertions
 
-Two `State` methods are provided for wwriting assertions (conditions on variables in scope, including the state of the monitor):
+Two `State` methods are provided for writing assertions (conditions on variables in scope, including the state of the monitor):
 
 - `ensure(b: bool, msg: str = 'Assertion violation') -> Union[OkState, ErrorState]`
 - `check(b: bool, msg: str = 'Assertion violation') -> None`
