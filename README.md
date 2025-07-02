@@ -778,6 +778,80 @@ m.verify(trace)
 
 This time we call the `verify(trace: List[Event])` method on the monitor. It calls the `eval(event: Event)` method on each event in the trace and calls `end()` after processing all events in the trace.
 
+# -------------------------
+
+## Composite States
+
+PyContract supports the composition of states to create more complex and expressive specifications. The primary composite states are `AndState`, `OrState`, `NotState`, and `Sequence`.
+
+### `OrState`
+
+An `OrState` represents a disjunction of states. It is active as long as at least one of its sub-states is active. When an event occurs, it is passed to all active sub-states. If a sub-state transitions to an `ErrorState`, it is silently removed from the `OrState`. If, on the other hand, a sub-state transitions to an `OkState`, the `OrState` itself transitions to an `OkState`. And `OrState` can be created in two ways: using the `OrState` constructor or by using the `|` operator.
+
+**Example:**
+
+This following state requires the system to follow a `Reading` pattern or a `Writing` pattern.
+
+```python
+Reading() | Writing()
+```
+
+It can also be written as:
+
+```python
+OrState(Reading(), Writing())
+```
+
+### `AndState`
+
+An `AndState` represents a conjunction of states. It is active as long as all of its sub-states are active. When an event occurs, it is passed to all active sub-states. If a sub-state transitions to an `ErrorState`, the `AndState` results in an `ErrorState`. If all sub-states transition to an `OkState`, the sub-state is silently removed from the `AndState`. An `AndState` can be created in two ways: using the `AndState` constructor or by using the `&` operator.
+
+**Example:**
+
+This following state requires that the system is both LoggedIn and has AdminAccess.
+
+```python
+LoggedIn() & AdminAccess()
+```
+
+It can also be written as:
+
+```python
+AndState(LoggedIn(), AdminAccess())
+```
+
+### `NotState`
+
+A `NotState` represents the negation of a state. It is active as long as its sub-state is active. If the sub-state transitions to an `ErrorState`, the `NotState` results in an `OkState`. If the sub-state transitions to an `OkState`, the `NotState` results in an `ErrorState`. A `NotState` can be created using the `NotState` constructor.
+
+**Example:**
+
+The following state ensures that a user is never both a Guest and an Admin.
+
+```python
+NotState(Guest() & Admin())
+```
+
+### Sequencing with `>>`
+
+The `>>` operator creates a `Sequence` of states. The state on the right-hand side of the operator only becomes active after the state on the left-hand side has successfully transitioned to `OkState`.
+
+This is useful for specifying ordered workflows or protocols.
+
+**Example:**
+
+The following state specifies that a file must be Opened, then Read, and finally Closed.
+
+```python
+Opened() >> Read() >> Closed()
+```
+
+This kind of state can also be written in the following more cumbersome way:
+
+```python
+Sequence(Opened(), Sequence(Read(), Closed()))
+```
+
 ### Visualization
 
 The visualization of this state machine is as follows.
