@@ -197,7 +197,7 @@ The `Locked` state, in turn, is a `HotState`. This means that at the end of moni
 The `transition` function for this state cases out on whether it is an `Acquire` event or a `Release` event. The pattern `Acquire(_, self.lock)` matches any `Acquire` event where the second argument, the lock, is the same as `self.lock`. The first argument, the thread, we don't care about, indicated by an underscore. In this case an error (state) is returned, with an optional error message.
 
 In the second case, the `Release(self.thread, self.lock)` matches a `Release` event only if the thread argument is equal to `self.thread` and if the lock argument is equal to `self.lock`. In this case the `ok` state is returned, indicating that we are done monitoring the `Locked` state, which then will be removed from the state vector. In general, any dotted name in a pattern indicates that the incoming value has to match this exact value.
-Note that instead of returnin `ok` one can return `ok_message('some message')`, which will have the same effect, but also reports the message to the user.
+Note that instead of returning `ok` one can return `ok_message('some message')`, which will have the same effect, but also reports the message to the user.
                     
 
 ### Applying the Monitor
@@ -703,6 +703,15 @@ The visualization of this state machine is as follows.
 </p>
 <br>
 
+## Assertions
+
+Two `State` methods are provided for wwriting assertions (conditions on variables in scope, including the state of the monitor):
+
+- `ensure(b: bool, msg: str = 'Assertion violation') -> Union[OkState, ErrorState]`
+- `check(b: bool, msg: str = 'Assertion violation') -> None`
+
+The `ensure` method returns an `OkState` or `ErrorState` based on the condition, and can be used in a `return` statement. The `check` method reports an error if the condition is not met. It is meant to not be used in a `return` statement. 
+
 ## Kinds of States
 
 We have above seen two kinds of states: `AlwaysState` and `HotState`. PyContract offers beyond these two states three others: `State`, `NextState`, and `HotNextState`, as explaned in the following table (left column). A user-defined state class must extend one of these, at which point state objects of the userdefined class behave as expained in columns 2-4.
@@ -778,8 +787,6 @@ m.verify(trace)
 ```
 
 This time we call the `verify(trace: List[Event])` method on the monitor. It calls the `eval(event: Event)` method on each event in the trace and calls `end()` after processing all events in the trace.
-
-# -------------------------
 
 ## Composite States
 
