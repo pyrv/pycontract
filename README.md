@@ -197,6 +197,7 @@ The `Locked` state, in turn, is a `HotState`. This means that at the end of moni
 The `transition` function for this state cases out on whether it is an `Acquire` event or a `Release` event. The pattern `Acquire(_, self.lock)` matches any `Acquire` event where the second argument, the lock, is the same as `self.lock`. The first argument, the thread, we don't care about, indicated by an underscore. In this case an error (state) is returned, with an optional error message.
 
 In the second case, the `Release(self.thread, self.lock)` matches a `Release` event only if the thread argument is equal to `self.thread` and if the lock argument is equal to `self.lock`. In this case the `ok` state is returned, indicating that we are done monitoring the `Locked` state, which then will be removed from the state vector. In general, any dotted name in a pattern indicates that the incoming value has to match this exact value.
+Note that instead of returnin `ok` one can return `ok_message('some message')`, which will have the same effect, but also reports the message to the user.
                     
 
 ### Applying the Monitor
