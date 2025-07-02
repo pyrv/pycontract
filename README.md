@@ -439,7 +439,8 @@ Analysis result:
 
 Process finished with exit code 0
 
-```
+Debugging information is printed with blue color in order to distinguish it from other output. Furthermore, in addition to being printed ``along the way'', 
+it is also printed at the end when the `end()` method is called.
 
 ## Transition Functions at the Outermost Level
 
@@ -691,7 +692,12 @@ case Release(_, lock) if not self.exists(self.acquired(lock)): # <--- exists
 
 The function `exists(`_p_`)` for a state predicate _p_ will return True if there is a state _s_ in the state vector for which _p(s)_ is True.
 
-Note also how we in the `Locked` state allow any thread to release a lock by not caring about the thread argument using an underscore.
+Defining a predicate as above and call `exists` on it is somewhat verbose. The folowing form is shorter:
+
+```python
+case Release(_, lock) if not self.exists(self.Locked(lock=lock)):
+    return error(f'thread releases un-acquired lock {lock}')
+```
 
 ### Visualization
 
