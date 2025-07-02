@@ -782,11 +782,11 @@ This time we call the `verify(trace: List[Event])` method on the monitor. It cal
 
 ## Composite States
 
-PyContract supports the composition of states to create more complex and expressive specifications. The primary composite states are `AndState`, `OrState`, `NotState`, and `Sequence`.
+PyContract supports the composition of states to create more complex and expressive specifications. The primary composite states are `OrState`, `AndState`, `NotState`, and `Sequence`.
 
 ### `OrState`
 
-An `OrState` represents a disjunction of states. It is active as long as at least one of its sub-states is active. When an event occurs, it is passed to all active sub-states. If a sub-state transitions to an `ErrorState`, it is silently removed from the `OrState`. If, on the other hand, a sub-state transitions to an `OkState`, the `OrState` itself transitions to an `OkState`. And `OrState` can be created in two ways: using the `OrState` constructor or by using the `|` operator.
+An `OrState` represents a disjunction of states. When an event occurs, it is passed to all active sub-states. If a sub-state transitions to an `ErrorState`, it is silently removed from the `OrState`. If, on the other hand, a sub-state transitions to an `OkState`, the `OrState` itself transitions to an `OkState`. An `OrState` can be created in two ways: by using the `|` operator or by using the `OrState` constructor.
 
 **Example:**
 
@@ -804,11 +804,11 @@ OrState(Reading(), Writing())
 
 ### `AndState`
 
-An `AndState` represents a conjunction of states. It is active as long as all of its sub-states are active. When an event occurs, it is passed to all active sub-states. If a sub-state transitions to an `ErrorState`, the `AndState` results in an `ErrorState`. If all sub-states transition to an `OkState`, the sub-state is silently removed from the `AndState`. An `AndState` can be created in two ways: using the `AndState` constructor or by using the `&` operator.
+An `AndState` represents a conjunction of states. When an event occurs, it is passed to all active sub-states. If a sub-state transitions to an `ErrorState`, the `AndState` results in an `ErrorState`. If a sub-state transition to an `OkState`, the sub-state is silently removed from the `AndState`. An `AndState` can be created in two ways: by using the `&` operator or by using the `AndState` constructor.
 
 **Example:**
 
-This following state requires that the system is both LoggedIn and has AdminAccess.
+This following state requires that the user is both `LoggedIn` and has `AdminAccess`.
 
 ```python
 LoggedIn() & AdminAccess()
@@ -820,9 +820,11 @@ It can also be written as:
 AndState(LoggedIn(), AdminAccess())
 ```
 
+Note that PyContract represents a list of states as having the same semantics as an `AndState`. It is therefore not needed unless in combination with one of the other composite states.
+
 ### `NotState`
 
-A `NotState` represents the negation of a state. It is active as long as its sub-state is active. If the sub-state transitions to an `ErrorState`, the `NotState` results in an `OkState`. If the sub-state transitions to an `OkState`, the `NotState` results in an `ErrorState`. A `NotState` can be created using the `NotState` constructor.
+A `NotState` represents the negation of a state. If the sub-state transitions to an `ErrorState`, the `NotState` results in an `OkState`. If the sub-state transitions to an `OkState`, the `NotState` results in an `ErrorState`. A `NotState` can be created using the `NotState` constructor.
 
 **Example:**
 
@@ -850,6 +852,12 @@ This kind of state can also be written in the following more cumbersome way:
 
 ```python
 Sequence(Opened(), Sequence(Read(), Closed()))
+```
+
+It can be useful for specifying that a number of tasks must be completed before a final task starts, working as a kind of join, as in:
+
+```python
+(DeleteFolder1() & DeleteFolder2()) >> CreateNewFolder()
 ```
 
 ### Visualization
