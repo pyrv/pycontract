@@ -89,4 +89,4 @@ if __name__ == '__main__':
     # and leave the first branch in a hot state (yellow).
     trace = [A(1), D(1), F(1)]    
     m.verify(trace)
-
+    

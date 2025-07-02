@@ -1310,9 +1310,9 @@ The visualization of this state machine is as follows.
 
 This state machine looks admittedy a bit odd since it does not show the code that is executed on transitions. That includes the counting and the call to `report_error`. The decision not to include code was based on an objective to keep the size of the diagrams small. However, this decision will be re-evaluated.
 
-## Multiple Monitors
+## Composing Monitors
 
-Monitors can be combined into a single monitor. For example, the following is possible, at the same time illustrating again that events can be of any data type. The two monitors verify that no 1's and 2's are observed.
+Monitors can be combined into a single monitor in a nested tree of monitors. For example, the following is possible, at the same time illustrating again that events can be of any data type. The two monitors verify that no 1's and 2's are observed.
 
 ```python
 class Monitor1(Monitor):
@@ -1333,13 +1333,43 @@ class Monitors(Monitor):
         self.monitor_this(Monitor1(), Monitor2())
 ```
 
-This allows to build a hierarchy of monitors, which might be useful for grouping.
-The followng setup violates the second monitor.
+This is used for grouping monitors into one. It has the straightforward semantics that any event submitted to the top-level monitor is by that monitor forwarded to its sub monitors, etc. recursively.
+
+The following setup violates the second monitor.
 
 ```python
 m = Monitors()
 trace = [3, 4, 5, 2]
 m.verify(trace)
+```
+
+## Chained Monitors
+
+Monitors can be chained together such that e.g.
+a low level monitor can send events to a high level monitor. An instances of the high level monitor then has to be passed as argument to the low level monitor for it to call the `eval` method on it. When the `end()` method is called on the low level monitor, it will call the `end()` method on the high level monitor, just as it does for sub monitors (it knows how to get to it).
+
+Below is an example of a low level monitor that sends events to a high level monitor.
+It calculates `2x + 1` for each number `x` sent to the low level monitor.
+
+```python
+class High(Monitor):
+    def transition(self, event):
+        print(f'2x + 1 = {event + 1}')
+
+
+class Low(Monitor):
+    def __init__(self, high: Monitor):
+        super().__init__()
+        self.high = high
+
+    def transition(self, event):
+        self.high.eval(event * 2)
+
+
+high = High()
+low = Low(high)
+low.eval(3)
+low.end
 ```
 
 ### Visualization
