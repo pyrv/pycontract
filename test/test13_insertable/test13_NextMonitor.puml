@@ -1,0 +1,8 @@
+@startuml
+title NextMonitor
+  state "Next **next**" as Next
+  state NextStep
+  state error #red
+  Next --> error : **event**
+  NextStep --> [*] : **event**
+@enduml

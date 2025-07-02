@@ -1,0 +1,8 @@
+@startuml
+title AcquireRelease
+  [*] -> Always
+  state Always #green
+  state DoRelease #yellow : lock : str
+  Always --> DoRelease : **Acquire(_, lock)**\n--->\n(lock)
+  DoRelease --> [*] : **Release(_, self.lock)**
+@enduml

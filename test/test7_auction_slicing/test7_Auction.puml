@@ -1,0 +1,9 @@
+@startuml
+title Auction
+  [*] -> Always
+  state Always
+  state "Listed **next**" as Listed : item : str, reserve : int, prev_bid : int
+  Always --> Listed : **List(item, reserve)**\n--->\n(item,reserve,0)
+  Listed --> Listed : 1 **Bid(self.item, amount)**\namount > self.prev_bid\n--->\n(self.item,self.reserve,amount)
+  Listed --> [*] : 2 **Sell(self.item)**\nself.prev_bid > self.reserve
+@enduml
