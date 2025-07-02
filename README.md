@@ -1343,7 +1343,26 @@ trace = [3, 4, 5, 2]
 m.verify(trace)
 ```
 
-## Chained Monitors
+### Visualization
+
+The visualization of these state machines is as follows.
+
+<br>
+<p align="center">
+  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitor1.png" />
+</p>
+<p align="center">
+  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitor2.png" />
+</p>
+<p align="center">
+  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitors.png" />
+</p>
+<br>
+
+
+Again, since code to be executed (except for conditions) is not shown (see previous comment on this), the calls for `report_error` is not shown for the two monitors. The visualization of `Monitors` just shows the sub-monitors it contains.
+
+## Chaining Monitors
 
 Monitors can be chained together such that e.g.
 a low level monitor can send events to a high level monitor. An instances of the high level monitor then has to be passed as argument to the low level monitor for it to call the `eval` method on it. When the `end()` method is called on the low level monitor, it will call the `end()` method on the high level monitor, just as it does for sub monitors (it knows how to get to it).
@@ -1368,28 +1387,9 @@ class Low(Monitor):
 
 high = High()
 low = Low(high)
-low.eval(3)
+low.eval(3) # will print 2x + 1 = 7
 low.end
 ```
-
-### Visualization
-
-The visualization of these state machines is as follows.
-
-<br>
-<p align="center">
-  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitor1.png" />
-</p>
-<p align="center">
-  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitor2.png" />
-</p>
-<p align="center">
-  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitors.png" />
-</p>
-<br>
-
-
-Again, since code to be executed (except for conditions) is not shown (see previous comment on this), the calls for `report_error` is not shown for the two monitors. The visualization of `Monitors` just shows the sub-monitors it contains.
 
 ## Using Indexing to Speed up Monitors
 
