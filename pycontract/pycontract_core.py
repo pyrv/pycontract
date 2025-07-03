@@ -3,6 +3,7 @@ PyContract
 """
 from __future__ import annotations
 import sys
+import json
 from dataclasses import dataclass
 import copy
 import inspect
@@ -672,14 +673,20 @@ class Message:
 class Monitor:
     debug_messages: List[str] = []
     ended_monitors: Set['Monitor'] = set()
+    jsonl_filename: Optional[str] = "pycontract_log.jsonl"
+    jsonl_file: Optional[Any] = None
 
     @classmethod
     def reset(cls):
         """
         Resets the global state of all monitors.
         """
+        cls.ended_monitors.clear()
+        if cls.jsonl_file:
+            cls.jsonl_file.close()
+            cls.jsonl_file = None
         cls.debug_messages = []
-        cls.ended_monitors = set()
+
     """
     Any user defined monitor class must extend this class. It defines a monitor.
     """
@@ -979,10 +986,24 @@ class Monitor:
         sys.stdout.flush()
 
     def report_ok(self, msg: str):
-        message = f'{COLOR_GREEN}--- ok: {msg}{COLOR_RESET}'
-        self.messages.append(Message(message, None, category='ok'))
-        print(message)
-        sys.stdout.flush()
+        if msg.startswith("json"):
+            json_str = msg[len("json"):].strip()
+            try:
+                json.loads(json_str)  # Validate
+                if Monitor.jsonl_filename:
+                    if Monitor.jsonl_file is None:
+                        Monitor.jsonl_file = open(Monitor.jsonl_filename, 'a')
+                    Monitor.jsonl_file.write(json_str + '\n')
+                    Monitor.jsonl_file.flush()
+            except json.JSONDecodeError as e:
+                self.report_error(f"Invalid JSON in report_ok: {json_str}, error: {e}")
+            except Exception as e:
+                self.report_error(f"Could not write to jsonl file '{Monitor.jsonl_filename}': {e}")
+        else:
+            message = f'{COLOR_GREEN}--- ok: {msg}{COLOR_RESET}'
+            self.messages.append(Message(message, None, category='ok'))
+            print(message)
+            sys.stdout.flush()
 
     def report_end_error(self, text: str, obj: object = None):
         """
