@@ -1782,7 +1782,7 @@ The visualization of this state machine is as follows.
 ## Producing JSONL files
 
 The `ok_message(msg)` helper, available within any state, allows for reporting success messages. While it accepts a simple string, it can also handle dictionaries. When a dictionary is passed, it is automatically converted to a JSON string in the final output, and is written to a JSONL file, with one line per call of the function.
-The JSONL file is by default `ok_messages.jsonl`. However, this file can be changed with a call of:
+The JSONL file is by default `pycontract_log.jsonl`. However, this file can be changed with a call of:
 
 ```python
 set_jsonl("my_json_messages.jsonl")
@@ -1796,9 +1796,9 @@ When you pass a simple string, it will be recorded as the message.
 return self.ok_message("Task completed successfully.")
 ```
 
-This will not cause writing to the JSONL file.
+This will **not** cause writing to the JSONL file.
 
-### Usage with a Dictionary
+### Usage with a dictionary
 
 You can pass a Python dictionary directly to `ok_message`. This will cause the dictionary to be written to the JSONL file as A JSON object.
 
@@ -1830,6 +1830,16 @@ return self.ok_message(f"json{{"event": 'task_completion', "status": "{status}",
 - Use {{...}}  to delimit the JSON string
 - Use "{...}" to delimit a string variables
 - Use {...} to delimit a numeric variables as normally
+
+### The gerenated JSONL file
+
+The generated JSONL file will look like this, with one line per call of `ok_message`:
+
+```json
+{"event": "task_start", "status": "success", "task_id": 12345}
+{"event": "task_completion", "status": "success", "task_id": 12345}
+...
+```
 
 ## Getting Events from a CSV file
 
