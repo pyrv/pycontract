@@ -1779,6 +1779,58 @@ The visualization of this state machine is as follows.
 </p>
 <br>
 
+## Producing JSONL files
+
+The `ok_message(msg)` helper, available within any state, allows for reporting success messages. While it accepts a simple string, it can also handle dictionaries. When a dictionary is passed, it is automatically converted to a JSON string in the final output, and is written to a JSONL file, with one line per call of the function.
+The JSONL file is by default `ok_messages.jsonl`. However, this file can be changed with a call of:
+
+```python
+set_jsonl("my_json_messages.jsonl")
+```
+
+### Usage with a String
+
+When you pass a simple string, it will be recorded as the message.
+
+```python
+return self.ok_message("Task completed successfully.")
+```
+
+This will not cause writing to the JSONL file.
+
+### Usage with a Dictionary
+
+You can pass a Python dictionary directly to `ok_message`. This will cause the dictionary to be written to the JSONL file as A JSON object.
+
+```python
+# Using a dictionary
+return self.ok_message({
+    "event": "task_completion",
+    "status": "success",
+    "task_id": 12345,
+    "completion_time_ms": 150
+})
+```
+
+### Usage with a JSON String
+
+Finally, it is possible to pass a JSON string prefixed with 'json' to `ok_message`. 
+
+```python
+# Using a JSON string
+return self.ok_message("json{"event": 'task_completion', "status": 'success', "task_id": 12345}")
+```
+
+Note that in this case, if we pass an f-string, then it has to follow the following rather complex pattern:
+
+```python
+return self.ok_message(f"json{{"event": 'task_completion', "status": "{status}", "task_id": {task_id}}}")
+```
+
+- Use {{...}}  to delimit the JSON string
+- Use "{...}" to delimit a string variables
+- Use {...} to delimit a numeric variables as normally
+
 ## Getting Events from a CSV file
 
 A common application of PyContract will be log analysis. 
