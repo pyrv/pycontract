@@ -95,6 +95,14 @@ def set_debug_progress(value: int):
     """
     Debug.DEBUG_PROGRESS = value
 
+def set_jsonl(value: str):
+    """
+    Sets the JSONL filename. When set, all messages produced by `report_ok` will be written to this file.
+
+    :param value: the JSONL filename.
+    """
+    Monitor.jsonl_filename = value
+
 
 def debug_frame(symbol: Char, msg: str):
     """
@@ -345,11 +353,15 @@ class State:
         if not b:
             self.monitor.report_error(msg)
 
-    def ok_message(self, msg: str) -> OkState:
+    def ok_message(self, msg: Union[str, dict]) -> OkState:
         """
         A helper method to report a success message and return an OkState.
         """
-        self.monitor.report_ok(msg)
+        if isinstance(msg, dict):
+            # Automatically serialize dicts to a JSON string for report_ok
+            self.monitor.report_ok(f"json{json.dumps(msg)}")
+        else:
+            self.monitor.report_ok(msg)
         return ok
 
 class HotState(State):
@@ -989,21 +1001,22 @@ class Monitor:
         if msg.startswith("json"):
             json_str = msg[len("json"):].strip()
             try:
-                json.loads(json_str)  # Validate
+                json_obj = json.loads(json_str)
                 if Monitor.jsonl_filename:
                     if Monitor.jsonl_file is None:
                         Monitor.jsonl_file = open(Monitor.jsonl_filename, 'a')
-                    Monitor.jsonl_file.write(json_str + '\n')
+                    compact_json_str = json.dumps(json_obj, separators=(',', ':'))
+                    Monitor.jsonl_file.write(compact_json_str + '\n')
                     Monitor.jsonl_file.flush()
+                    msg = compact_json_str
             except json.JSONDecodeError as e:
                 self.report_error(f"Invalid JSON in report_ok: {json_str}, error: {e}")
             except Exception as e:
                 self.report_error(f"Could not write to jsonl file '{Monitor.jsonl_filename}': {e}")
-        else:
-            message = f'{COLOR_GREEN}--- ok: {msg}{COLOR_RESET}'
-            self.messages.append(Message(message, None, category='ok'))
-            print(message)
-            sys.stdout.flush()
+        message = f'{COLOR_GREEN}--- ok: {msg}{COLOR_RESET}'
+        self.messages.append(Message(message, None, category='ok'))
+        print(message)
+        sys.stdout.flush()
 
     def report_end_error(self, text: str, obj: object = None):
         """
