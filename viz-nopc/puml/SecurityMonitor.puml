@@ -1,0 +1,12 @@
+@startuml
+state SecurityMonitor{
+  [*] -> LoggedOut
+  state LoggedOut
+
+  state LoggedIn #yellow : username : Any
+
+  LoggedOut --> LoggedIn : **event**\nevent is LoginEvent and event.success\n--->\n(event.username)
+  LoggedOut --> [*] : **event**
+  LoggedIn --> LoggedOut : **event**\nevent.name == 'logout'
+}
+@enduml

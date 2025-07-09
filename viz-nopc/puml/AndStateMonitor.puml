@@ -1,0 +1,19 @@
+@startuml
+state AndStateMonitor{
+  [*] -> Start
+  state Start
+
+  state AND <<fork>>
+
+  state PathA
+
+  state PathB
+
+  Start --> AND : **event**\nevent.name == 'parallel'
+  Start --> [*] : **event**\n__not__(event.name == 'parallel')
+  AND -[dashed]-> PathA
+  AND -[dashed]-> PathB
+  PathA --> [*] : **event**\nevent.name == 'a_complete'
+  PathB --> [*] : **event**\nevent.name == 'b_complete'
+}
+@enduml
