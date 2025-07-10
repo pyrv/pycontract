@@ -1,6 +1,6 @@
 # PyContract
 
-Version 1.3.0
+Version 1.3.1
 
 PyContract is an internal Python DSL for writing event stream monitors. It is based on state machines but extends them in two fundamental ways. First, in addition to control states the user can also define variables, updated and queried on transitions (what is also called extended finite state machines). Second, states can be parameterized with data. The underlying concept is that at any point during monitoring there is a set of _active states_, also referred to as the _"state vector"_. States can be added to this set by taking state to state transitions (target states are added), and can be removed from this vector by leaving states as a result of transitions. Each state in the vector can itself monitor the incoming event stream. The user can mix state machines with regular Python code as desired. 
 
@@ -254,13 +254,62 @@ Analysis result:
 
 ### Visualization
 
-The monitor can be visualized. By executing:
+Monitors can be visualized by generating state machine diagrams from your monitor definitions using [PlantUML](https://plantuml.com). This feature analyzes the code using the 
+[ast](https://docs.python.org/3/library/ast.html) module of Python, and tries (best effort) to detect the monitor states and transitions.
 
-```python
-visualize(__file__)
+
+#### Method 1: Using the visualizer script
+
+You can run the visualizer script:
+
+```bash
+python -m pycontract.visualizer path/to/your/file.py [options]
 ```
 
-in the file containing the monitor, each monitor in the file will be visualized using [PlantUML](https://plantuml.com). Note that `__file__` denotes the current file. Each monitor is analyzed and from it is generated a text file in PlantUML format, which then is visualized as a `.png` file using PlantUML's image generator. The name of the generated `png` file is composed of the name of the Python file followed by the name of the monitor. For the monitor above the following state machine is generated:
+Options are:
+
+- `--outdir DIR` or `-o DIR`: the output directory for generated diagrams (default: current directory)
+
+This will:
+
+1. Analyze all monitors defined in the file
+2. Generate PlantUML (.puml) files in a `puml` subdirectory (of `DIR` if provided)
+3. Convert these to PNG images in the current directory (or `DIR`). The name of the generated `png` for a monitor file is `MonitorName.png`. 
+
+#### Method 2: Call `visualize(__file__)` in your code
+
+Another way to visualize your monitors is to add a call to the `visualize()` function at the end of your Python file containing the monitors:
+
+```python
+from pycontract import visualize
+
+# Your monitor definitions here...
+
+if __name__ == "__main__":
+    visualize(__file__)
+```
+
+If we instead execute the statement:
+
+```python
+visualize(__file__, True)
+```
+
+The generated text files that are input to PlantUML, and from which the `.png` files are generated, are stored. 
+
+#### Diagrams
+
+The visualizer supports all PyContract state types and provides distinct visual representations for each:
+
+- Regular states: Shown as standard UML state boxes
+- Error states: Shown in red
+- AndState: Represented by a horizontal bar symbol (fork)
+- OrState: Represented by a black diamond symbol (choice)
+- NotState: Represented by a black box symbol
+- Initial states: Marked with an incoming transition from a black dot
+- Final states: Marked with outgoing transitions to a circled black dot
+
+For the monitor above the following state machine is generated:
 
 <br>
 <p align="center">
@@ -272,14 +321,7 @@ The initial `Start` state is green, denoting that it is an `AlwaysState`. The st
 The `Locked` state is parameterized with `thread` and `lock`. In the `Start` state, upon an event matching the pattern `Acquire(thread,lock)`, a `Locked` state is generated, with arguments `(thread,lock)`. The arguments are shown below the horisontal `--->` arrow on the transition from `Start` to `Locked`. Note how the transitions from the `Locked` state are numbered. This is important in some cases where the top down evaluation of case entries in a match statement has importance (although it has no importance here).
 Transitions are, however, only numbered if there are more than one case entry.
 
-If we instead execute the statement:
-
-```python
-visualize(__file__, True)
-```
-
-The generated text file that is input to PlantUML, and from which the `.png` file is generated, is stored with file suffix `.pu`. 
-In this case it looks as follows.
+The input file to PlantUML looks as follows.
 
 ```
 @startuml
