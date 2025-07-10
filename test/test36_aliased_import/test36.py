@@ -148,6 +148,24 @@ class AndStateMonitor(pc.Monitor):
                 return pc.ok
             return None
 
+# Monitor with NotState example
+class NotStateMonitor(pc.Monitor):
+    @pc.initial
+    class Start(pc.State):
+        def transition(self, event):
+            if event.name == 'check':
+                # Create a NotState that negates the Inner state
+                return pc.NotState(self.Inner())
+            return pc.ok
+
+    class Inner(pc.State):
+        def transition(self, event):
+            if event.name == 'succeed':
+                return pc.ok
+            elif event.name == 'fail':
+                return pc.error("Inner state failed as expected")
+            return None
+
 class Test36(unittest.TestCase):
     def setUp(self):
         # Reset the monitor state before each test
@@ -258,3 +276,27 @@ class Test36(unittest.TestCase):
             mon.eval(event)
         mon.end()
         self.assertFalse(mon.errors_found(), "Monitor should have no errors")
+
+    def test_not_state_monitor(self):
+        """Tests a monitor with NotState negation."""
+        # Scenario 1: Inner state fails, so NotState succeeds
+        mon = NotStateMonitor()
+        trace = [
+            Event('check'),
+            Event('fail')
+        ]
+        for event in trace:
+            mon.eval(event)
+        mon.end()
+        self.assertFalse(mon.errors_found(), "NotState should succeed when inner state fails")
+        
+        # Scenario 2: Inner state succeeds, so NotState fails
+        mon = NotStateMonitor()
+        trace = [
+            Event('check'),
+            Event('succeed')
+        ]
+        for event in trace:
+            mon.eval(event)
+        mon.end()
+        self.assertTrue(mon.errors_found(), "NotState should fail when inner state succeeds")

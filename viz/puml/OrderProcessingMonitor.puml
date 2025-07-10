@@ -1,4 +1,5 @@
 @startuml
+hide empty description
 state OrderProcessingMonitor{
   state error #red
   [*] -> OrderReceived

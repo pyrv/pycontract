@@ -1,4 +1,5 @@
 @startuml
+hide empty description
 state PaymentMonitor{
   state error #red
   [*] -> Idle

@@ -1,4 +1,5 @@
 @startuml
+hide empty description
 state AliasedMonitor{
   [*] -> Initial
   state Initial

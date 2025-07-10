@@ -1,0 +1,19 @@
+@startuml
+hide empty description
+state NotStateMonitor{
+  state error #red
+  [*] -> Start
+  state Start
+
+  state Inner
+
+  state NOT <<circle>> #black
+
+  Start --> NOT : **event**\nevent.name == 'check'
+  Start --> [*] : **event**\n__not__(event.name == 'check')
+  NOT -[dashed]-> Inner
+  Inner --> [*] : **event**\nevent.name == 'succeed'
+  state error #red
+  Inner --> error : **event**\nevent.name == 'fail'
+}
+@enduml

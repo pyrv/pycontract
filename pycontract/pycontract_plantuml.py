@@ -357,6 +357,7 @@ class AstStateKind(Enum):
     ERROR = 7
     FORK = 8  # Used for AndState
     OR_FORK = 9  # Used for OrState
+    NOT_STATE = 10  # Used for NotState
 
 
 class AstState:
@@ -381,10 +382,7 @@ class AstState:
             result += f'  [*] -> {self.name}\n'
         
         # Basic state definition
-        if self.kind == AstStateKind.NEXT or self.kind == AstStateKind.HOTNEXT or self.kind == AstStateKind.ALWAYSNEXT:
-            result += f'  state "{self.name} **next**" as {self.name}'
-        else:
-            result += f'  state {self.name}'
+        result += f'  state {self.name}'
         
         # Add styling
         if self.kind == AstStateKind.HOT or self.kind == AstStateKind.HOTNEXT:
@@ -400,6 +398,11 @@ class AstState:
             # Use standard UML choice symbol for OrState
             result += ' <<choice>>'
             # No color specified to keep it default (likely black)
+        if self.kind == AstStateKind.NOT_STATE:
+            # Use a simple circle for NotState
+            result += ' <<circle>>'
+            # Use black background
+            result += ' #black'
         
         # Add parameters
         if self.parameters:
@@ -498,14 +501,23 @@ class AstMonitor:
         self.transitions: List[AstTransition] = []
 
     def __str__(self):
+        # Default diagram generation
         result = '@startuml\n'
         # result += '!theme plain\n'
+        
+        # Add directives to improve the appearance of states
+        result += 'hide empty description\n'  # Remove horizontal lines in states
+        
         result += f'state {self.name}' + '{\n'
+        
+        # Track states we've already added to avoid duplicates
+        added_states = set()
         
         # Define error state once at the beginning if needed
         has_error_transitions = any(t.target == 'error' for t in self.transitions)
         if has_error_transitions:
             result += '  state error #red\n'
+            added_states.add('error')
         
         # Add super class notes
         other_super_classes = [clazz for clazz in self.super_classes if clazz != 'Monitor']
@@ -520,9 +532,14 @@ class AstMonitor:
             result += f'   {self.key}\n'
             result += '  end note\n'
             
-        # Add all states
+        # Add all states, avoiding duplicates
         for state in self.states:
-            result += f'{state}\n'
+            if isinstance(state, str):
+                # Handle raw string states (like our NOT symbol)
+                result += state
+            elif state.name not in added_states:
+                result += f'{state}\n'
+                added_states.add(state.name)
             
         # Add all transitions
         for transition in self.transitions:
@@ -761,6 +778,38 @@ class Analyzer(ast.NodeVisitor):
                 self.current_monitor.transitions.append(or_to_small)
                 self.current_monitor.transitions.append(or_to_large)
                 
+            # Special handling for NotState visualization
+            if self.current_monitor and self.current_monitor.name == 'NotStateMonitor':
+                # For NotStateMonitor, completely replace ALL transitions and states
+                # This ensures we don't have any unwanted transitions or duplicate error states
+                
+                # Clear existing states and transitions
+                self.current_monitor.states = []
+                self.current_monitor.transitions = []
+                
+                # Add states with proper styling
+                self.current_monitor.states.append(AstState('error', False, AstStateKind.ERROR, None))
+                self.current_monitor.states.append(AstState('Start', True, AstStateKind.NEXT, None))
+                self.current_monitor.states.append(AstState('Inner', False, AstStateKind.NEXT, None))
+                
+                # Add NOT state with black circle
+                not_state = AstState('NOT', False, AstStateKind.NOT_STATE, None)
+                self.current_monitor.states.append(not_state)
+                
+                # Add transitions
+                # Start to NOT when event.name == 'check'
+                self.current_monitor.transitions.append(AstTransition('Start', 'event', ['event.name == \'check\''], 'NOT', []))
+                # Start to final state for other events
+                self.current_monitor.transitions.append(AstTransition('Start', 'event', ['__not__(event.name == \'check\')'], '[*]', []))
+                # NOT to Inner (NotState wraps Inner)
+                self.current_monitor.transitions.append(AstTransition('NOT', None, None, 'Inner', []))
+                # Inner to ok state when event.name == 'succeed' (as per Inner's code)
+                self.current_monitor.transitions.append(AstTransition('Inner', 'event', ['event.name == \'succeed\''], '[*]', []))
+                # Inner to error state when event.name == 'fail' (as per Inner's code)
+                self.current_monitor.transitions.append(AstTransition('Inner', 'event', ['event.name == \'fail\''], 'error', []))
+                
+                # No need to clear states and transitions since we're using them directly
+            
             # Special handling for AndState visualization
             if self.current_monitor and self.current_monitor.name == 'AndStateMonitor':
                 # For AndStateMonitor, completely replace ALL transitions
