@@ -33,12 +33,7 @@ def main():
         analyzer.visit(tree)
     except Exception as e:
         print(f"Error parsing file {args.file}: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    if not analyzer.monitors:
-        print(f"No monitors found in {args.file}")
-        return
-
+    
     # Create the main output directory
     os.makedirs(args.outdir, exist_ok=True)
     

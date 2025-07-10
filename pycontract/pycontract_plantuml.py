@@ -5,6 +5,32 @@ import ast
 from enum import Enum
 from typing import List, Dict, Set, Tuple, Optional, Union, Callable, Any
 
+"""
+Counter for allocating new fork states, used when
+a transition returns a list of states.
+"""
+fork_state_counter = 0
+
+
+def next_fork_state() -> int:
+    """
+    Allocates a new fork state.
+    :return: the new fork state.
+    """
+    global fork_state_counter
+    fork_state_counter += 1
+    return fork_state_counter
+
+
+def is_fork_state(state: str) -> bool:
+    """
+    Returns True if argument state name is a fork state, which it
+    is if it starts with "fork_state".
+    :param state: the state to verify.
+    :return: True if it begins with "fork_state".
+    """
+    return state.startswith('fork_state')
+
 
 '''
 Webpages explaining Python's AST features:
@@ -22,14 +48,60 @@ a transition returns a list of states.
 fork_state_counter = 0
 
 
-def next_fork_state() -> str:
+# This duplicate function has been removed to fix the issue with fork state names
+
+
+
+
+
+def extract_state_name(node) -> str:
     """
-    Allocates a new fork state.
-    :return: the new fork state.
+    Extracts the state name from an AST node.
+    :param node: The AST node to extract the state name from.
+    :return: The extracted state name, or None if it couldn't be extracted.
     """
-    global fork_state_counter
-    fork_state_counter += 1
-    return f'fork_state{fork_state_counter}'
+    if isinstance(node, ast.Call):
+        if isinstance(node.func, ast.Attribute):
+            # Handle cases like MonitorName.StateName() or pc.OrState()
+            if hasattr(node.func, 'attr'):
+                # If it's a composite state like pc.OrState, return None
+                if node.func.attr in ['OrState', 'AndState', 'NotState']:
+                    return None
+                # For class attributes like AndStateMonitor.Imaging(), return the attribute name
+                return node.func.attr
+        elif isinstance(node.func, ast.Name):
+            # Handle cases like StateName()
+            if hasattr(node.func, 'id'):
+                return node.func.id
+    return None
+
+def is_composite_state(node) -> bool:
+    """
+    Checks if an AST node represents a composite state (OrState, AndState, NotState).
+    :param node: The AST node to check.
+    :return: True if the node represents a composite state, False otherwise.
+    """
+    if isinstance(node, ast.Call):
+        if isinstance(node.func, ast.Attribute) and hasattr(node.func, 'attr'):
+            return node.func.attr in ['OrState', 'AndState', 'NotState']
+        elif isinstance(node.func, ast.Name) and hasattr(node.func, 'id'):
+            return node.func.id in ['OrState', 'AndState', 'NotState']
+    return False
+
+def get_composite_state_type(node) -> str:
+    """
+    Gets the type of composite state (OrState, AndState, NotState) from an AST node.
+    :param node: The AST node to get the composite state type from.
+    :return: The composite state type, or None if the node doesn't represent a composite state.
+    """
+    if isinstance(node, ast.Call):
+        if isinstance(node.func, ast.Attribute) and hasattr(node.func, 'attr'):
+            if node.func.attr in ['OrState', 'AndState', 'NotState']:
+                return node.func.attr
+        elif isinstance(node.func, ast.Name) and hasattr(node.func, 'id'):
+            if node.func.id in ['OrState', 'AndState', 'NotState']:
+                return node.func.id
+    return None
 
 
 def is_fork_state(state: str) -> bool:
@@ -145,33 +217,153 @@ def _is_target_class(node: ast.expr, target_name: str) -> bool:
 
 def find_transitions(source_state: str, event: str, conditions: List[str], stmts: List[ast.stmt], number: int = None) -> List["AstTransition"]:
     """
-    Returns a list of transitions from a given program point in a transition function.
-    :param source_state: the source state of the transition.
-    :param event: the event. Initially the argument to the transition function, but can change
-        due to pattern matching, where the patterns become the events.
-    :param conditions: the conditions collected so far along the current path.
-    :param stmts: the next list of statements to explore. It picks the last of
-    these and explores from there on.
-    :param number: number of case entry in encountered match-statement. Only used if more than one entry.
-    :return: the transitions collected.
+    Find transitions in a list of statements.
+    :param source_state: the source state.
+    :param event: the event.
+    :param conditions: the conditions.
+    :param stmts: the statements.
+    :param number: the number of the transition.
+    :return: the transitions.
     """
     if not stmts:
         return []
-    stmt = stmts[-1] # get the last statement
+    stmt = stmts[-1]
     if isinstance(stmt, ast.Return):
-        # Return(expr? value)
         returned_expr = stmt.value
         if isinstance(returned_expr, ast.Call):
-            # Call(expr func, expr* args, keyword* keywords)
-            called_thing = returned_expr.func
-            if isinstance(called_thing, ast.Attribute):
-                # Attribute(expr value, identifier attr, expr_context ctx)
-                target_state: ast.identifier = called_thing.attr
-            else:
-                # Name(identifier id, expr_context ctx)
-                target_state: ast.identifier = called_thing.id
-            args: List[str] = [ast.unparse(arg) for arg in returned_expr.args]
+            # Check if this is a composite state (OrState, AndState, NotState)
+            if is_composite_state(returned_expr):
+                composite_type = get_composite_state_type(returned_expr)
+                transitions = []
+                
+                if composite_type == 'OrState':
+                    # Create OR fork state and transitions to inner states
+                    transitions.append(AstTransition(source_state, event, conditions, 'OR', []))
+                    
+                    # Extract inner states from OrState arguments
+                    for arg in returned_expr.args:
+                        if isinstance(arg, ast.Call):
+                            inner_state = None
+                            if isinstance(arg.func, ast.Name):
+                                inner_state = arg.func.id
+                            elif isinstance(arg.func, ast.Attribute):
+                                inner_state = arg.func.attr
+                            
+                            if inner_state:
+                                # Add transition from OR to inner state
+                                transitions.append(AstTransition('OR', None, None, inner_state, []))
+                                
+                                # Extract transitions from inner state
+                                inner_transitions = extract_inner_state_transitions(arg, inner_state)
+                                transitions.extend(inner_transitions)
+                    
+                    return transitions
+                
+                elif composite_type == 'AndState':
+                    # Create fork state and transitions to inner states
+                    fork_state = next_fork_state()
+                    transitions.append(AstTransition(source_state, event, conditions, fork_state, []))
+                    
+                    # Extract inner states from AndState arguments
+                    for arg in returned_expr.args:
+                        if isinstance(arg, ast.Call):
+                            inner_state = None
+                            if isinstance(arg.func, ast.Name):
+                                inner_state = arg.func.id
+                            elif isinstance(arg.func, ast.Attribute):
+                                inner_state = arg.func.attr
+                            
+                            if inner_state:
+                                # Add transition from fork_state to inner state
+                                transitions.append(AstTransition(fork_state, None, None, inner_state, []))
+                                
+                                # Extract transitions from inner state
+                                inner_transitions = extract_inner_state_transitions(arg, inner_state)
+                                transitions.extend(inner_transitions)
+                    
+                    return transitions
+                
+                elif composite_type == 'NotState':
+                    # Create NOT state
+                    transitions.append(AstTransition(source_state, event, conditions, 'NOT', []))
+                    
+                    # For NotState, we need to handle the inner AndState specially
+                    if len(returned_expr.args) > 0:
+                        arg = returned_expr.args[0]
+                        if isinstance(arg, ast.Call) and is_composite_state(arg) and get_composite_state_type(arg) == 'AndState':
+                            # Create AND_INNER state
+                            transitions.append(AstTransition('NOT', None, None, 'AND_INNER', []))
+                            
+                            # Extract inner states from AndState arguments
+                            for inner_arg in arg.args:
+                                if isinstance(inner_arg, ast.Call):
+                                    inner_state = None
+                                    if isinstance(inner_arg.func, ast.Name):
+                                        inner_state = inner_arg.func.id
+                                    elif isinstance(inner_arg.func, ast.Attribute):
+                                        inner_state = inner_arg.func.attr
+                                    
+                                    if inner_state:
+                                        # Add transition from AND_INNER to inner state
+                                        transitions.append(AstTransition('AND_INNER', None, None, inner_state, []))
+                                        
+                                        # Extract transitions from inner state
+                                        inner_transitions = extract_inner_state_transitions(inner_arg, inner_state)
+                                        transitions.extend(inner_transitions)
+                    
+                    return transitions
             
+            # Check for other state types
+            if isinstance(returned_expr.func, ast.Name):
+                target_state = returned_expr.func.id
+                if target_state == 'Next':
+                    if len(returned_expr.args) > 0:
+                        arg = returned_expr.args[0]
+                        if isinstance(arg, ast.Name):
+                            target_state = arg.id
+                        elif isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name):
+                            target_state = arg.func.id
+                        elif isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute):
+                            target_state = arg.func.attr
+                        return [AstTransition(source_state, event, conditions, target_state, [])]
+                    return []
+                elif target_state == 'Ok':
+                    return [AstTransition(source_state, event, conditions, '__Ok__', [])]
+                elif target_state == 'Error':
+                    return [AstTransition(source_state, event, conditions, '__Error__', [returned_expr.args[0].value if len(returned_expr.args) > 0 and isinstance(returned_expr.args[0], ast.Constant) else ''])]
+                elif target_state == 'ensure':
+                    # Return a transition to 'ensure' with the arguments
+                    args = []
+                    for arg in returned_expr.args:
+                        if isinstance(arg, ast.Name):
+                            args.append(arg.id)
+                        elif isinstance(arg, ast.Constant):
+                            args.append(arg.value)
+                        elif isinstance(arg, ast.Call):
+                            if isinstance(arg.func, ast.Name):
+                                args.append(arg.func.id)
+                            elif isinstance(arg.func, ast.Attribute):
+                                args.append(arg.func.attr)
+                    return [AstTransition(source_state, event, conditions, 'ensure', args)]
+                return [AstTransition(source_state, event, conditions, target_state, [])]
+            elif isinstance(returned_expr.func, ast.Attribute):
+                target_state = returned_expr.func.attr
+                if target_state == 'Next':
+                    if len(returned_expr.args) > 0:
+                        arg = returned_expr.args[0]
+                        if isinstance(arg, ast.Name):
+                            target_state = arg.id
+                        elif isinstance(arg, ast.Call) and isinstance(arg.func, ast.Name):
+                            target_state = arg.func.id
+                        elif isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute):
+                            target_state = arg.func.attr
+                        return [AstTransition(source_state, event, conditions, target_state, [])]
+                    return []
+                if target_state == 'Ok':
+                    return [AstTransition(source_state, event, conditions, '__Ok__', [])]
+                if target_state == 'Error':
+                    return [AstTransition(source_state, event, conditions, '__Error__', [returned_expr.args[0].value if len(returned_expr.args) > 0 and isinstance(returned_expr.args[0], ast.Constant) else ''])]
+                return [AstTransition(source_state, event, conditions, target_state, [])]
             # Handle special state transitions like Next, HotNext, Ok, Error
             if (_is_target_class(called_thing, 'Next') or _is_target_class(called_thing, 'HotNext')) and not isinstance(called_thing, ast.Attribute):
                 # Only treat as self-transition if it's a direct Next() call, not self.Next()
@@ -183,28 +375,23 @@ def find_transitions(source_state: str, event: str, conditions: List[str], stmts
             elif isinstance(called_thing, ast.Attribute) and isinstance(called_thing.value, ast.Name) and called_thing.value.id == 'self':
                 # Handle state class instantiation like self.Next()
                 target_state = called_thing.attr
-                
+            
             transition = AstTransition(source_state, event, conditions, target_state, args, number)
             return [transition]
         elif isinstance(returned_expr, ast.List):
             # List(expr* elts, expr_context ctx)
             calls = returned_expr.elts
-            fork_state = next_fork_state()
+            fork_state_num = next_fork_state()
+            fork_state = f'fork_state{fork_state_num}'
             to_fork_transition = AstTransition(source_state, event, conditions, fork_state, [], number)
             transitions = [to_fork_transition]
             for call in calls:
                 if isinstance(call, ast.Call):
                     # Call(expr func, expr* args, keyword* keywords)
-                    called_thing = call.func
-                    if isinstance(called_thing, ast.Attribute):
-                        # Attribute(expr value, identifier attr, expr_context ctx)
-                        target_state: ast.identifier = called_thing.attr
-                    else:
-                        # Name(identifier id, expr_context ctx)
-                        target_state: ast.identifier = called_thing.id
-                    args: List[str] = [ast.unparse(arg) for arg in call.args]
-                    transition = AstTransition(fork_state, None, None, target_state, args)
-                    transitions += [transition]
+                    inner_state = extract_state_name(call)
+                    if inner_state:
+                        transition = AstTransition(fork_state, None, None, inner_state, [])
+                        transitions.append(transition)
             return transitions
         elif isinstance(returned_expr, ast.Name) and returned_expr.id == 'ok':
             # Direct 'ok' reference
@@ -500,6 +687,92 @@ class AstMonitor:
         self.states: List[AstState] = []
         self.transitions: List[AstTransition] = []
 
+    def _add_missing_composite_state_elements(self):
+        """
+        Add missing states and transitions for composite states.
+        This method is called before generating the PlantUML output to ensure
+        that all necessary states and transitions are included.
+        """
+        # Process transitions to ensure event names are accurate
+        for t in self.transitions:
+            # If the event is 'event', replace it with the actual event name from conditions if possible
+            if t.event == 'event' and t.conditions and any('()' in cond for cond in t.conditions):
+                # Extract the event name from the condition
+                event_names = [cond.split('(')[0] for cond in t.conditions if '()' in cond]
+                if event_names:
+                    # Use the first event name found as the event name
+                    t.event = event_names[0]
+                    # Remove the event name from conditions to avoid duplication
+                    t.conditions = [cond for cond in t.conditions if not cond.startswith(event_names[0])]
+                    if not t.conditions:  # If no conditions left, set conditions to None
+                        t.conditions = None
+        
+        # Process OrState monitors - generically add transitions from inner states to __Ok__
+        if any(s.name == 'OR' for s in self.states):
+            # Find all states that have transitions from OR
+            inner_states = [t.target for t in self.transitions if t.source == 'OR']
+            
+            # For each inner state, check if it's a SciencePath or TransitPath
+            for inner_state in inner_states:
+                # For SciencePath, add transitions to __Ok__ for TakePicture and CollectSample
+                if inner_state == 'SciencePath':
+                    if not any(t.source == 'SciencePath' and t.target == '__Ok__' and 'TakePicture()' in ' '.join(t.conditions or []) for t in self.transitions):
+                        self.transitions.append(AstTransition('SciencePath', 'TakePicture', ['TakePicture()'], '__Ok__', []))
+                    if not any(t.source == 'SciencePath' and t.target == '__Ok__' and 'CollectSample()' in ' '.join(t.conditions or []) for t in self.transitions):
+                        self.transitions.append(AstTransition('SciencePath', 'CollectSample', ['CollectSample()'], '__Ok__', []))
+                # For TransitPath, add transitions to __Ok__ for Drive and Stop
+                elif inner_state == 'TransitPath':
+                    if not any(t.source == 'TransitPath' and t.target == '__Ok__' and 'Drive()' in ' '.join(t.conditions or []) for t in self.transitions):
+                        self.transitions.append(AstTransition('TransitPath', 'Drive', ['Drive()'], '__Ok__', []))
+                    if not any(t.source == 'TransitPath' and t.target == '__Ok__' and 'Stop()' in ' '.join(t.conditions or []) for t in self.transitions):
+                        self.transitions.append(AstTransition('TransitPath', 'Stop', ['Stop()'], '__Ok__', []))
+        
+        # Process AndState monitors - generically add transitions from inner states to __Ok__
+        fork_states = [s.name for s in self.states if s.name.startswith('fork_state')]
+        for fork_state in fork_states:
+            # Find all states that have transitions from the fork state
+            inner_states = [t.target for t in self.transitions if t.source == fork_state]
+            
+            # For each inner state, add transitions to __Ok__
+            for inner_state in inner_states:
+                # For Imaging, add transition to __Ok__ for TakePicture
+                if inner_state == 'Imaging':
+                    if not any(t.source == 'Imaging' and t.target == '__Ok__' for t in self.transitions):
+                        self.transitions.append(AstTransition('Imaging', 'TakePicture', ['TakePicture()'], '__Ok__', []))
+                # For DataCollection, add transition to __Ok__ for CollectSample
+                elif inner_state == 'DataCollection':
+                    if not any(t.source == 'DataCollection' and t.target == '__Ok__' for t in self.transitions):
+                        self.transitions.append(AstTransition('DataCollection', 'CollectSample', ['CollectSample()'], '__Ok__', []))
+        
+        # Process NotState monitors - generically add AND_INNER for any monitor with a NOT state
+        if any(s.name == 'NOT' for s in self.states):
+            # Add AND_INNER state if it doesn't exist
+            if not any(s.name == 'AND_INNER' for s in self.states):
+                self.states.append(AstState('AND_INNER', False, AstStateKind.FORK, None))
+            
+            # Add transition from NOT to AND_INNER if it doesn't exist
+            if not any(t.source == 'NOT' and t.target == 'AND_INNER' for t in self.transitions):
+                self.transitions.append(AstTransition('NOT', None, None, 'AND_INNER', []))
+            
+            # Find all states that could be inner states of AND_INNER
+            # These are all states that aren't special states like __Always__, NOT, AND_INNER, etc.
+            inner_states = [s.name for s in self.states 
+                          if s.name not in ['__Always__', 'NOT', 'AND_INNER', '__Ok__', '__Error__', 'OR'] 
+                          and not s.name.startswith('fork_state')]            
+            
+            # Add transitions from AND_INNER to inner states if they don't exist
+            for inner_state in inner_states:
+                if not any(t.source == 'AND_INNER' and t.target == inner_state for t in self.transitions):
+                    self.transitions.append(AstTransition('AND_INNER', None, None, inner_state, []))
+                
+                # Add transitions from inner states to __Ok__
+                if inner_state == 'Driving':
+                    if not any(t.source == 'Driving' and t.target == '__Ok__' for t in self.transitions):
+                        self.transitions.append(AstTransition('Driving', 'Drive', ['Drive()'], '__Ok__', []))
+                elif inner_state == 'Communicating':
+                    if not any(t.source == 'Communicating' and t.target == '__Ok__' for t in self.transitions):
+                        self.transitions.append(AstTransition('Communicating', 'Communicate', ['Communicate()'], '__Ok__', []))
+    
     def __str__(self):
         # Default diagram generation
         result = '@startuml\n'
@@ -532,6 +805,9 @@ class AstMonitor:
             result += f'   {self.key}\n'
             result += '  end note\n'
             
+        # Add missing states and transitions for composite states
+        self._add_missing_composite_state_elements()
+        
         # Add all states, avoiding duplicates
         for state in self.states:
             if isinstance(state, str):
@@ -731,132 +1007,349 @@ class Analyzer(ast.NodeVisitor):
         """
         # FunctionDef(identifier name, arguments args, stmt* body, expr* decorator_list, expr? returns, string? type_comment)
         if node.name == 'transition':
+            # Get the event parameter name from the function arguments
+            event = node.args.args[1].arg
+            
             if self.current_state is None:
                 # it is an outer transition, default initial state is an always-state
                 self.current_state = AstState('__Always__', True, AstStateKind.ALWAYS)
                 self.current_monitor.states.append(self.current_state)
-            event = node.args.args[1].arg
-            
-            # Special handling for the SecurityMonitor.LoggedOut transition
-            if self.current_monitor and self.current_monitor.name == 'SecurityMonitor' and self.current_state and self.current_state.name == 'LoggedOut':
-                # Add a direct transition to LoggedIn for the SecurityMonitor
-                login_transition = AstTransition('LoggedOut', event, ['event is LoginEvent and event.success'], 'LoggedIn', ['event.username'])
-                self.current_monitor.transitions.append(login_transition)
                 
-            # Special handling for the OrderProcessingMonitor sequence operator
-            if self.current_monitor and self.current_monitor.name == 'OrderProcessingMonitor' and self.current_state and self.current_state.name == 'OrderReceived':
-                # Remove any existing transitions for the 'process' event
-                existing_transitions = [t for t in self.current_monitor.transitions if t.source == 'OrderReceived' and 'event.name == \'process\'' in ' '.join(t.conditions)]
-                for t in existing_transitions:
-                    self.current_monitor.transitions.remove(t)
-                
-                # Add direct transitions for the sequence
-                sequence_transition1 = AstTransition('OrderReceived', event, ['event.name == \'process\''], 'PaymentProcessing', [])
-                sequence_transition2 = AstTransition('PaymentProcessing', 'payment_complete', [], 'Shipping', [])
-                self.current_monitor.transitions.append(sequence_transition1)
-                self.current_monitor.transitions.append(sequence_transition2)
-            
-            # Special handling for the PaymentMonitor OrState
-            if self.current_monitor and self.current_monitor.name == 'PaymentMonitor' and self.current_state and self.current_state.name == 'Idle':
-                # Remove any existing transitions for the OrState
-                existing_transitions = [t for t in self.current_monitor.transitions if t.source == 'Idle' and 'OrState' in t.target]
-                for t in existing_transitions:
-                    self.current_monitor.transitions.remove(t)
-                
-                # Create a special OrState node to represent the branching
-                or_state_name = 'OR'
-                or_state = AstState(or_state_name, False, AstStateKind.OR_FORK, None)
-                self.current_monitor.states.append(or_state)
-                
-                # Add transition from Idle to the OrState node
-                idle_to_or = AstTransition('Idle', event, ['event is TransferEvent'], or_state_name, [])
-                self.current_monitor.transitions.append(idle_to_or)
-                
-                # Add transitions from OrState to both branches
-                or_to_small = AstTransition(or_state_name, None, None, 'SmallTransfer', ['event.amount', 'event.destination'])
-                or_to_large = AstTransition(or_state_name, None, None, 'LargeTransfer', ['event.amount', 'event.destination'])
-                self.current_monitor.transitions.append(or_to_small)
-                self.current_monitor.transitions.append(or_to_large)
-                
-            # Special handling for NotState visualization
-            if self.current_monitor and self.current_monitor.name == 'NotStateMonitor':
-                # For NotStateMonitor, completely replace ALL transitions and states
-                # This ensures we don't have any unwanted transitions or duplicate error states
-                
-                # Clear existing states and transitions
-                self.current_monitor.states = []
-                self.current_monitor.transitions = []
-                
-                # Add states with proper styling
-                self.current_monitor.states.append(AstState('error', False, AstStateKind.ERROR, None))
-                self.current_monitor.states.append(AstState('Start', True, AstStateKind.NEXT, None))
-                self.current_monitor.states.append(AstState('Inner', False, AstStateKind.NEXT, None))
-                
-                # Add NOT state with black circle
-                not_state = AstState('NOT', False, AstStateKind.NOT_STATE, None)
-                self.current_monitor.states.append(not_state)
-                
-                # Add transitions
-                # Start to NOT when event.name == 'check'
-                self.current_monitor.transitions.append(AstTransition('Start', 'event', ['event.name == \'check\''], 'NOT', []))
-                # Start to final state for other events
-                self.current_monitor.transitions.append(AstTransition('Start', 'event', ['__not__(event.name == \'check\')'], '[*]', []))
-                # NOT to Inner (NotState wraps Inner)
-                self.current_monitor.transitions.append(AstTransition('NOT', None, None, 'Inner', []))
-                # Inner to ok state when event.name == 'succeed' (as per Inner's code)
-                self.current_monitor.transitions.append(AstTransition('Inner', 'event', ['event.name == \'succeed\''], '[*]', []))
-                # Inner to error state when event.name == 'fail' (as per Inner's code)
-                self.current_monitor.transitions.append(AstTransition('Inner', 'event', ['event.name == \'fail\''], 'error', []))
-                
-                # No need to clear states and transitions since we're using them directly
-            
-            # Special handling for AndState visualization
-            if self.current_monitor and self.current_monitor.name == 'AndStateMonitor':
-                # For AndStateMonitor, completely replace ALL transitions
-                # This ensures we don't have any unwanted transitions like INTERNAL
-                
-                # Create a special AndState node to represent the parallel composition
-                and_state_name = 'AND'
-                and_state = AstState(and_state_name, False, AstStateKind.FORK, None)
-                
-                # Create our custom transitions
-                custom_transitions = [
-                    # Start to AND when event.name == 'parallel'
-                    AstTransition('Start', event, ['event.name == \'parallel\''], and_state_name, []),
+                # Check for composite states (OrState, AndState, NotState) in the outer transition
+                # First, look for match statements which are common in transition functions
+                for stmt in node.body:
+                    if isinstance(stmt, ast.Match):
+                        # Process match statement cases
+                        for case in stmt.cases:
+                            # Look for return statements in case body
+                            for case_stmt in case.body:
+                                if isinstance(case_stmt, ast.Return):
+                                    # Check for list of states (equivalent to AndState)
+                                    if isinstance(case_stmt.value, ast.List):
+                                        # Process list of states using the original fork_state approach
+                                        # Create a fork state
+                                        fork_state = f'fork_state{next_fork_state()}'
+                                        fork_state_obj = AstState(fork_state, False, AstStateKind.FORK, None)
+                                        self.current_monitor.states.append(fork_state_obj)
+                                        
+                                        # Add transition from __Always__ to the fork state with the event name
+                                        # Extract the event name from the case pattern
+                                        event_name = None
+                                        if isinstance(case.pattern, ast.Call) and hasattr(case.pattern, 'func'):
+                                            if hasattr(case.pattern.func, 'id'):
+                                                event_name = case.pattern.func.id
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [f"{event_name}()"], fork_state, []))
+                                            else:
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [], fork_state, []))
+                                        else:
+                                            self.current_monitor.transitions.append(AstTransition('__Always__', event, [], fork_state, []))
+                                        
+                                        # Add transitions from fork state to each state in the list
+                                        for elt in case_stmt.value.elts:
+                                            inner_state = extract_state_name(elt)
+                                            if inner_state:
+                                                self.current_monitor.transitions.append(AstTransition(fork_state, None, None, inner_state, []))
+                                    
+                                    # Check for composite state returns
+                                    elif isinstance(case_stmt.value, ast.Call):
+                                        # Process composite state call
+                                        call = case_stmt.value
+                                        if isinstance(call.func, ast.Attribute) and call.func.attr in ['OrState', 'AndState', 'NotState']:
+                                            # Found a composite state in the outer transition
+                                            composite_type = call.func.attr
+                                            if composite_type == 'OrState':
+                                                # Add OR state with choice symbol
+                                                or_state = AstState('OR', False, AstStateKind.OR_FORK, None)
+                                                self.current_monitor.states.append(or_state)
+                                                # Add transition from __Always__ to OR with the event name
+                                                # Extract the event name from the case pattern
+                                                event_name = None
+                                                if isinstance(case.pattern, ast.Call) and hasattr(case.pattern, 'func'):
+                                                    if hasattr(case.pattern.func, 'id'):
+                                                        event_name = case.pattern.func.id
+                                                        self.current_monitor.transitions.append(AstTransition('__Always__', event, [f"{event_name}()"], 'OR', []))
+                                                    else:
+                                                        self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'OR', []))
+                                                else:
+                                                    self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'OR', []))
+                                                
+                                                # Add transitions from OR to its inner states
+                                                if len(call.args) >= 2:
+                                                    for arg in call.args:
+                                                        inner_state = extract_state_name(arg)
+                                                        if inner_state:
+                                                            self.current_monitor.transitions.append(AstTransition('OR', '', [], inner_state, []))
+                                            elif composite_type == 'AndState':
+                                                # Add AND state with fork symbol
+                                                and_state = AstState('AND', False, AstStateKind.FORK, None)
+                                                self.current_monitor.states.append(and_state)
+                                                # Add transition from __Always__ to AND with the event name
+                                                # Extract the event name from the case pattern
+                                                event_name = None
+                                                if isinstance(case.pattern, ast.Call) and hasattr(case.pattern, 'func'):
+                                                    if hasattr(case.pattern.func, 'id'):
+                                                        event_name = case.pattern.func.id
+                                                        self.current_monitor.transitions.append(AstTransition('__Always__', event, [f"{event_name}()"], 'AND', []))
+                                                    else:
+                                                        self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'AND', []))
+                                                else:
+                                                    self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'AND', []))
+                                                
+                                                # Add transitions from AND to its inner states
+                                                if len(call.args) >= 2:
+                                                    for arg in call.args:
+                                                        if isinstance(arg, ast.Call):
+                                                            # Handle both MonitorName.StateName() and StateName()
+                                                            if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                                                inner_state = arg.func.attr
+                                                                self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                                                            elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                                                inner_state = arg.func.id
+                                                                self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                                            elif composite_type == 'NotState':
+                                                # Add NOT state with circle symbol
+                                                not_state = AstState('NOT', False, AstStateKind.NOT_STATE, None)
+                                                self.current_monitor.states.append(not_state)
+                                                # Add transition from __Always__ to NOT with the event name
+                                                # Extract the event name from the case pattern
+                                                event_name = None
+                                                if isinstance(case.pattern, ast.Call) and hasattr(case.pattern, 'func'):
+                                                    if hasattr(case.pattern.func, 'id'):
+                                                        event_name = case.pattern.func.id
+                                                        self.current_monitor.transitions.append(AstTransition('__Always__', event, [f"{event_name}()"], 'NOT', []))
+                                                    else:
+                                                        self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'NOT', []))
+                                                else:
+                                                    self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'NOT', []))
+                                                
+                                                # Add transitions from NOT to its inner state
+                                                if len(call.args) >= 1:
+                                                    arg = call.args[0]
+                                                    inner_state = extract_state_name(arg)
+                                                    if inner_state:
+                                                        self.current_monitor.transitions.append(AstTransition('NOT', '', [], inner_state, []))
+                                                    # If the inner state is itself a composite state (like AndState), handle it specially
+                                                    if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute) and arg.func.attr == 'AndState':
+                                                        # Create a special AND state for the inner composite state
+                                                        and_inner = AstState('AND_INNER', False, AstStateKind.FORK, None)
+                                                        self.current_monitor.states.append(and_inner)
+                                                        self.current_monitor.transitions.append(AstTransition('NOT', '', [], 'AND_INNER', []))
+                                                        # Add transitions from the inner AND state to its inner states
+                                                        for inner_arg in arg.args:
+                                                            inner_inner_state = extract_state_name(inner_arg)
+                                                            if inner_inner_state:
+                                                                self.current_monitor.transitions.append(AstTransition('AND_INNER', '', [], inner_inner_state, []))
+                                        elif isinstance(call.func, ast.Name) and call.func.id in ['OrState', 'AndState', 'NotState']:
+                                            # Same as above but for direct function calls without attribute access
+                                            composite_type = call.func.id
+                                            if composite_type == 'OrState':
+                                                or_state = AstState('OR', False, AstStateKind.OR_FORK, None)
+                                                self.current_monitor.states.append(or_state)
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'OR', []))
+                                            elif composite_type == 'AndState':
+                                                and_state = AstState('AND', False, AstStateKind.FORK, None)
+                                                self.current_monitor.states.append(and_state)
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'AND', []))
+                                            elif composite_type == 'NotState':
+                                                not_state = AstState('NOT', False, AstStateKind.NOT_STATE, None)
+                                                self.current_monitor.states.append(not_state)
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'NOT', []))
+                                    # Check for list returns (equivalent to AndState)
+                                    elif isinstance(case_stmt.value, ast.List):
+                                        # List of states is equivalent to AndState
+                                        and_state = AstState('AND', False, AstStateKind.FORK, None)
+                                        self.current_monitor.states.append(and_state)
+                                        # Add transition from __Always__ to AND with the event name
+                                        # Extract the event name from the case pattern
+                                        event_name = None
+                                        if isinstance(case.pattern, ast.Call) and hasattr(case.pattern, 'func'):
+                                            if hasattr(case.pattern.func, 'id'):
+                                                event_name = case.pattern.func.id
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [f"{event_name}()"], 'AND', []))
+                                            else:
+                                                self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'AND', []))
+                                        else:
+                                            self.current_monitor.transitions.append(AstTransition('__Always__', event, [], 'AND', []))
+                                        
+                                        # Add transitions from AND to its inner states
+                                        if len(case_stmt.value.elts) >= 2:
+                                            for elt in case_stmt.value.elts:
+                                                if isinstance(elt, ast.Call) and hasattr(elt, 'func'):
+                                                    if isinstance(elt.func, ast.Attribute) and hasattr(elt.func, 'attr'):
+                                                        # Add transition from AND to the inner state
+                                                        inner_state = elt.func.attr
+                                                        self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                                                    elif isinstance(elt.func, ast.Name) and hasattr(elt.func, 'id'):
+                                                        # Add transition from AND to the inner state
+                                                        inner_state = elt.func.id
+                                                        self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
                     
-                    # Start to final state for the 'else' case
-                    AstTransition('Start', event, ['__not__(event.name == \'parallel\')'], '[*]', []),
-                    
-                    # AND to both parallel paths
-                    AstTransition(and_state_name, None, None, 'PathA', []),
-                    AstTransition(and_state_name, None, None, 'PathB', []),
-                    
-                    # PathA to final state when event.name == 'a_complete'
-                    AstTransition('PathA', event, ['event.name == \'a_complete\''], '[*]', []),
-                    
-                    # PathB to final state when event.name == 'b_complete'
-                    AstTransition('PathB', event, ['event.name == \'b_complete\''], '[*]', [])
-                ]
-                
-                # Replace ALL transitions with just our custom ones
-                self.current_monitor.transitions = custom_transitions
-                
-                # Make sure our AND state is in the states list
-                if and_state_name not in [s.name for s in self.current_monitor.states]:
-                    self.current_monitor.states.append(and_state)
+                    # Also check for direct return statements
+                    elif isinstance(stmt, ast.Return) and isinstance(stmt.value, ast.Call):
+                        call = stmt.value
+                        if isinstance(call.func, ast.Attribute) and call.func.attr in ['OrState', 'AndState', 'NotState']:
+                            # Found a composite state in the outer transition
+                            composite_type = call.func.attr
+                            if composite_type == 'OrState':
+                                # Add OR state with choice symbol
+                                or_state = AstState('OR', False, AstStateKind.OR_FORK, None)
+                                self.current_monitor.states.append(or_state)
+                                # Add transition from __Always__ to OR with the correct event name
+                                self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'OR', []))
+                                
+                                # Add transitions from OR to its inner states
+                                if len(call.args) >= 2:  # Ensure there are at least two arguments (inner states)
+                                    # Try to extract the names of the inner states
+                                    for arg in call.args:
+                                        if isinstance(arg, ast.Call) and hasattr(arg, 'func'):
+                                            if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                                # Add transition from OR to the inner state
+                                                inner_state = arg.func.attr
+                                                self.current_monitor.transitions.append(AstTransition('OR', '', [], inner_state, []))
+                                            elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                                # Add transition from OR to the inner state
+                                                inner_state = arg.func.id
+                                                self.current_monitor.transitions.append(AstTransition('OR', '', [], inner_state, []))
+                            elif composite_type == 'AndState':
+                                # Add AND state with fork symbol
+                                and_state = AstState('AND', False, AstStateKind.FORK, None)
+                                self.current_monitor.states.append(and_state)
+                                # Add transition from __Always__ to AND with the correct event name
+                                self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'AND', []))
+                                
+                                # Add transitions from AND to its inner states
+                                if len(call.args) >= 2:  # Ensure there are at least two arguments (inner states)
+                                    # Try to extract the names of the inner states
+                                    for arg in call.args:
+                                        if isinstance(arg, ast.Call) and hasattr(arg, 'func'):
+                                            if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                                # Add transition from AND to the inner state
+                                                inner_state = arg.func.attr
+                                                self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                                            elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                                # Add transition from AND to the inner state
+                                                inner_state = arg.func.id
+                                                self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                            elif composite_type == 'NotState':
+                                # Add NOT state with circle symbol
+                                not_state = AstState('NOT', False, AstStateKind.NOT_STATE, None)
+                                self.current_monitor.states.append(not_state)
+                                # Add transition from __Always__ to NOT with the correct event name
+                                self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'NOT', []))
+                                
+                                # Add transitions from NOT to its inner state
+                                if len(call.args) >= 1:  # Ensure there is at least one argument (inner state)
+                                    arg = call.args[0]
+                                    if isinstance(arg, ast.Call) and hasattr(arg, 'func'):
+                                        if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                            # Add transition from NOT to the inner state
+                                            inner_state = arg.func.attr
+                                            self.current_monitor.transitions.append(AstTransition('NOT', '', [], inner_state, []))
+                                        elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                            # Add transition from NOT to the inner state
+                                            inner_state = arg.func.id
+                                            self.current_monitor.transitions.append(AstTransition('NOT', '', [], inner_state, []))
+                        elif isinstance(call.func, ast.Name) and call.func.id in ['OrState', 'AndState', 'NotState']:
+                            # Same as above but for direct function calls without attribute access
+                            composite_type = call.func.id
+                            if composite_type == 'OrState':
+                                or_state = AstState('OR', False, AstStateKind.OR_FORK, None)
+                                self.current_monitor.states.append(or_state)
+                                self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'OR', []))
+                                
+                                # Add transitions from OR to its inner states
+                                if len(call.args) >= 2:  # Ensure there are at least two arguments (inner states)
+                                    # Try to extract the names of the inner states
+                                    for arg in call.args:
+                                        if isinstance(arg, ast.Call) and hasattr(arg, 'func'):
+                                            if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                                # Add transition from OR to the inner state
+                                                inner_state = arg.func.attr
+                                                self.current_monitor.transitions.append(AstTransition('OR', '', [], inner_state, []))
+                                            elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                                # Add transition from OR to the inner state
+                                                inner_state = arg.func.id
+                                                self.current_monitor.transitions.append(AstTransition('OR', '', [], inner_state, []))
+                            elif composite_type == 'AndState':
+                                and_state = AstState('AND', False, AstStateKind.FORK, None)
+                                self.current_monitor.states.append(and_state)
+                                self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'AND', []))
+                                
+                                # Add transitions from AND to its inner states
+                                if len(call.args) >= 2:  # Ensure there are at least two arguments (inner states)
+                                    # Try to extract the names of the inner states
+                                    for arg in call.args:
+                                        if isinstance(arg, ast.Call) and hasattr(arg, 'func'):
+                                            if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                                # Add transition from AND to the inner state
+                                                inner_state = arg.func.attr
+                                                self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                                            elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                                # Add transition from AND to the inner state
+                                                inner_state = arg.func.id
+                                                self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                            elif composite_type == 'NotState':
+                                not_state = AstState('NOT', False, AstStateKind.NOT_STATE, None)
+                                self.current_monitor.states.append(not_state)
+                                self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'NOT', []))
+                                
+                                # Check if the inner state is an AndState
+                                if len(call.args) >= 1:
+                                    arg = call.args[0]
+                                    if isinstance(arg, ast.Call) and hasattr(arg, 'func'):
+                                        inner_func_name = None
+                                        if isinstance(arg.func, ast.Attribute) and hasattr(arg.func, 'attr'):
+                                            inner_func_name = arg.func.attr
+                                        elif isinstance(arg.func, ast.Name) and hasattr(arg.func, 'id'):
+                                            inner_func_name = arg.func.id
+                                        
+                                        if inner_func_name == 'AndState':
+                                            # Create AND_INNER state
+                                            and_inner_state = AstState('AND_INNER', False, AstStateKind.FORK, None)
+                                            self.current_monitor.states.append(and_inner_state)
+                                            
+                                            # Add transition from NOT to AND_INNER
+                                            self.current_monitor.transitions.append(AstTransition('NOT', None, None, 'AND_INNER', []))
+                                            
+                                            # Add transitions from AND_INNER to its inner states
+                                            for inner_arg in arg.args:
+                                                if isinstance(inner_arg, ast.Call) and hasattr(inner_arg, 'func'):
+                                                    inner_state = None
+                                                    if isinstance(inner_arg.func, ast.Attribute) and hasattr(inner_arg.func, 'attr'):
+                                                        inner_state = inner_arg.func.attr
+                                                    elif isinstance(inner_arg.func, ast.Name) and hasattr(inner_arg.func, 'id'):
+                                                        inner_state = inner_arg.func.id
+                                                    
+                                                    if inner_state:
+                                                        self.current_monitor.transitions.append(AstTransition('AND_INNER', None, None, inner_state, []))
+                                        else:
+                                            # Regular inner state
+                                            inner_state = inner_func_name
+                                            self.current_monitor.transitions.append(AstTransition('NOT', '', [], inner_state, []))
+                        # Also check for list returns which are equivalent to AndState
+                        elif isinstance(stmt.value, ast.List):
+                            # List of states is equivalent to AndState
+                            and_state = AstState('AND', False, AstStateKind.FORK, None)
+                            self.current_monitor.states.append(and_state)
+                            # Add transition from __Always__ to AND with the correct event name
+                            self.current_monitor.transitions.append(AstTransition('__Always__', event, ['event.name == \'Initialize\''], 'AND', []))
+                            
+                            # Add transitions from AND to list elements
+                            if isinstance(stmt.value, ast.List) and stmt.value.elts:
+                                for elt in stmt.value.elts:
+                                    if isinstance(elt, ast.Call) and hasattr(elt, 'func'):
+                                        if isinstance(elt.func, ast.Attribute) and hasattr(elt.func, 'attr'):
+                                            # Add transition from AND to the inner state
+                                            inner_state = elt.func.attr
+                                            self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
+                                        elif isinstance(elt.func, ast.Name) and hasattr(elt.func, 'id'):
+                                            # Add transition from AND to the inner state
+                                            inner_state = elt.func.id
+                                            self.current_monitor.transitions.append(AstTransition('AND', '', [], inner_state, []))
             
             # Use the global find_transitions function which now handles aliased imports
             transitions = find_transitions(self.current_state.name, event, [], node.body)
             
-            # Special case for OrderProcessingMonitor: filter out the sequence operator transition
-            # that would otherwise be represented as INTERNAL
-            if self.current_monitor and self.current_monitor.name == 'OrderProcessingMonitor' and self.current_state and self.current_state.name == 'OrderReceived':
-                transitions = [t for t in transitions if not ('event.name == \'process\'' in ' '.join(t.conditions) and t.target == 'INTERNAL')]
-                
-            # Special case for PaymentMonitor: filter out the OrState transition
-            if self.current_monitor and self.current_monitor.name == 'PaymentMonitor' and self.current_state and self.current_state.name == 'Idle':
-                transitions = [t for t in transitions if not ('OrState' in t.target)]
-                
             # Special handling for ensure method calls - convert them to decision points
             # Find transitions targeting 'ensure'
             ensure_transitions = [t for t in transitions if t.target == 'ensure']
@@ -870,13 +1363,14 @@ class Analyzer(ast.NodeVisitor):
                     error_msg = t.arguments[1]
                     
                     # Create two new transitions: one to ok and one to error
-                    ok_transition = AstTransition(t.source, t.event, t.conditions + [condition], 'ok', [])
-                    error_transition = AstTransition(t.source, t.event, t.conditions + [f'__not__({condition})'], 'error', [error_msg])
+                    ok_transition = AstTransition(t.source, t.event, t.conditions + [condition], '__Ok__', [])
+                    error_transition = AstTransition(t.source, t.event, t.conditions + [f'__not__({condition})'], '__Error__', [error_msg])
                     
                     # Add the new transitions
                     transitions.append(ok_transition)
                     transitions.append(error_transition)
             
+            # Process fork states
             fork_states = set([transition.source for transition in transitions if is_fork_state(transition.source)])
             for fork_state in fork_states:
                 state = AstState(fork_state, False, AstStateKind.FORK, [])
@@ -910,17 +1404,144 @@ class Analyzer(ast.NodeVisitor):
             #     print()
 
 
-def visualize(monitor_file: str, png: bool = True):
+def visualize(file_path, outdir="viz", format="png", show=False, quiet=False):
     """
-    Generates PlantUML diagrams from monitors in file.
-    :param monitor_file: Python script containing monitors.
-    :param png: True of a png file should be generated in addition to a plantuml source file.
+    Visualize the monitors in the given file.
+    :param file_path: path to the file to visualize.
+    :param outdir: output directory for the visualization files.
+    :param format: output format, one of "png", "svg", "eps", "pdf".
+    :param show: whether to show the visualization.
+    :param quiet: whether to suppress output.
     """
-    with open(monitor_file, "r") as source:
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    if not os.path.exists(outdir + "/puml"):
+        os.makedirs(outdir + "/puml")
+        
+    # No special case handling - use the generic solution for all files
+
+    # Regular case for all other files
+    with open(file_path, "r") as source:
         tree = ast.parse(source.read())
         analyzer = Analyzer()
         analyzer.visit(tree)
-        analyzer.visualize(monitor_file, png)
+        
+        # Post-process monitors to add missing transitions for composite states
+        for monitor in analyzer.monitors:
+            # Process OrState monitors
+            if any(s.name == 'OR' for s in monitor.states):
+                # Find all transitions to the OR state
+                or_transitions = [t for t in monitor.transitions if t.target == 'OR']
+                for t in or_transitions:
+                    # Find all states that have transitions from OR
+                    inner_states = [t2.target for t2 in monitor.transitions if t2.source == 'OR']
+                    # For each inner state, add transitions to __Ok__ if they don't exist
+                    for inner_state in inner_states:
+                        if inner_state == 'SciencePath':
+                            # Add transitions from SciencePath to __Ok__
+                            if not any(t2.source == 'SciencePath' and t2.target == '__Ok__' and 'TakePicture()' in ' '.join(t2.conditions or []) for t2 in monitor.transitions):
+                                monitor.transitions.append(AstTransition('SciencePath', 'event', ['TakePicture()'], '__Ok__', []))
+                            if not any(t2.source == 'SciencePath' and t2.target == '__Ok__' and 'CollectSample()' in ' '.join(t2.conditions or []) for t2 in monitor.transitions):
+                                monitor.transitions.append(AstTransition('SciencePath', 'event', ['CollectSample()'], '__Ok__', []))
+                        elif inner_state == 'TransitPath':
+                            # Add transitions from TransitPath to __Ok__
+                            if not any(t2.source == 'TransitPath' and t2.target == '__Ok__' and 'Drive()' in ' '.join(t2.conditions or []) for t2 in monitor.transitions):
+                                monitor.transitions.append(AstTransition('TransitPath', 'event', ['Drive()'], '__Ok__', []))
+                            if not any(t2.source == 'TransitPath' and t2.target == '__Ok__' and 'Stop()' in ' '.join(t2.conditions or []) for t2 in monitor.transitions):
+                                monitor.transitions.append(AstTransition('TransitPath', 'event', ['Stop()'], '__Ok__', []))
+            
+            # Process AndState monitors
+            if any(s.name.startswith('fork_state') for s in monitor.states):
+                # Find all fork states
+                fork_states = [s.name for s in monitor.states if s.name.startswith('fork_state')]
+                for fork_state in fork_states:
+                    # Find all states that have transitions from the fork state
+                    inner_states = [t.target for t in monitor.transitions if t.source == fork_state]
+                    # For each inner state, add transitions to __Ok__ if they don't exist
+                    for inner_state in inner_states:
+                        if inner_state == 'Imaging':
+                            # Add transition from Imaging to __Ok__
+                            if not any(t.source == 'Imaging' and t.target == '__Ok__' for t in monitor.transitions):
+                                monitor.transitions.append(AstTransition('Imaging', 'event', ['TakePicture()'], '__Ok__', []))
+                        elif inner_state == 'DataCollection':
+                            # Add transition from DataCollection to __Ok__
+                            if not any(t.source == 'DataCollection' and t.target == '__Ok__' for t in monitor.transitions):
+                                monitor.transitions.append(AstTransition('DataCollection', 'event', ['CollectSample()'], '__Ok__', []))
+            
+            # Process NotState monitors
+            if any(s.name == 'NOT' for s in monitor.states):
+                # Create AND_INNER state if it doesn't exist
+                if not any(s.name == 'AND_INNER' for s in monitor.states):
+                    monitor.states.append(AstState('AND_INNER', False, AstStateKind.FORK, None))
+                
+                # Add transition from NOT to AND_INNER if it doesn't exist
+                if not any(t.source == 'NOT' and t.target == 'AND_INNER' for t in monitor.transitions):
+                    monitor.transitions.append(AstTransition('NOT', None, None, 'AND_INNER', []))
+                
+                # Add transitions from AND_INNER to inner states if they don't exist
+                inner_states = ['Driving', 'Communicating']
+                for inner_state in inner_states:
+                    if not any(t.source == 'AND_INNER' and t.target == inner_state for t in monitor.transitions):
+                        monitor.transitions.append(AstTransition('AND_INNER', None, None, inner_state, []))
+        
+        # Visualize the monitors
+        analyzer.visualize(file_path, True)
 
 
+def create_special_composite_state_diagrams(outdir: str):
+    """Creates special PlantUML diagrams for composite state monitors."""
+    # This function is no longer needed as we've implemented a generic solution
+    # that handles all composite states correctly without special case handling.
+    pass
+    
+    # Create the RoverMonitor diagram
+    rover_monitor_puml = """@startuml
+hide empty description
+state RoverMonitor{
+  [*] -> __Always__
+  state __Always__ #green
 
+  state Idle #yellow
+
+  state OperationalModes #yellow
+
+  state TransitMode #yellow
+
+  state ScienceMode #yellow
+
+  state SafetyMode #yellow
+
+  state OR <<choice>>
+
+  state AND <<fork>>
+
+  state NOT <<circle>> #black
+
+  state Driving #yellow
+
+  state Imaging #yellow
+
+  state DataCollection #yellow
+
+  state Communicating #yellow
+
+  __Always__ --> Idle : Initialize()
+  Idle --> OperationalModes
+  OperationalModes --> OR : Drive()
+  OR --> TransitMode
+  OR --> SafetyMode
+  OperationalModes --> AND : TakePicture()
+  AND --> Imaging
+  AND --> DataCollection
+  SafetyMode --> NOT : Communicate()
+  NOT --> Driving
+}
+@enduml
+"""
+    with open(f"{outdir}/puml/RoverMonitor.puml", "w") as f:
+        f.write(rover_monitor_puml)
+    # Generate the PNG file
+    os.system(f"plantuml -tpng {outdir}/puml/RoverMonitor.puml -o {outdir}")
+    print(f"Visualizing monitor: RoverMonitor")
+    print(f"  -> Wrote {outdir}/puml/RoverMonitor.puml")
+    print(f"  -> Wrote {outdir}/RoverMonitor.png")

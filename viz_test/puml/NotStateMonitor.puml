@@ -15,8 +15,6 @@ state NotStateMonitor{
   __Always__ --> NOT : **event**
   NOT -[dashed]-> AND_INNER
   AND_INNER -[dashed]-> Driving
-  Driving --> __Ok__ : **Drive**\nDrive()
   AND_INNER -[dashed]-> Communicating
-  Communicating --> __Ok__ : **Communicate**\nCommunicate()
 }
 @enduml

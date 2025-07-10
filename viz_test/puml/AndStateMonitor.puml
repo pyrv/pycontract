@@ -13,7 +13,7 @@ state AndStateMonitor{
   __Always__ --> fork_state1 : **event**
   fork_state1 -[dashed]-> Imaging
   fork_state1 -[dashed]-> DataCollection
-  Imaging --> __Ok__ : **TakePicture**\nTakePicture()
-  DataCollection --> __Ok__ : **CollectSample**\nCollectSample()
+  Imaging --> __Ok__ : **event**\nTakePicture()
+  DataCollection --> __Ok__ : **event**\nCollectSample()
 }
 @enduml

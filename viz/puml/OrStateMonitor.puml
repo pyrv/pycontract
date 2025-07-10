@@ -1,0 +1,21 @@
+@startuml
+hide empty description
+state OrStateMonitor{
+  [*] -> __Always__
+  state __Always__ #green
+
+  state OR <<choice>>
+
+  state SciencePath #yellow
+
+  state TransitPath #yellow
+
+  __Always__ --> OR : **event**
+  OR -[dashed]-> SciencePath
+  OR -[dashed]-> TransitPath
+  SciencePath --> __Ok__ : **TakePicture**\nTakePicture()
+  SciencePath --> __Ok__ : **CollectSample**\nCollectSample()
+  TransitPath --> __Ok__ : **Drive**\nDrive()
+  TransitPath --> __Ok__ : **Stop**\nStop()
+}
+@enduml
