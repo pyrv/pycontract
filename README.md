@@ -547,8 +547,8 @@ class CountingAcquireRelease(Monitor):
     def transition(self, event):
         match event:
             case Acquire(thread, lock):
-                if self.count < 3: # <--- variable tested 
-                    self.count += 1 # <--- variable incremented
+                if self.monitor.count < 3: # <--- variable tested 
+                    self.monitor.count += 1 # <--- variable incremented
                     return self.Locked(thread, lock)
                 else:
                     return error('more that 3 locks acquired')
@@ -563,18 +563,27 @@ class CountingAcquireRelease(Monitor):
                 case Acquire(_, self.lock):
                     return error('lock re-acquired')
                 case Release(self.thread, self.lock):
-                    self.count -= 1 # <-- variable decremented. Variable is looked up in monitor
+                    self.monitor.count -= 1 # <-- variable decremented. Variable is looked up in monitor
                     return ok
 ```
 
 Note that we need call also the init method of the `Monitor` super-class.
 The example illustrates how state machines can be combined with programming. 
 
-Note how `self.count` in the `Locked` state results in the `count` defined in the monitor class. It is first looked up in the `Locked` class and not found, then looked up in the monitor class.
+Note how `count` in the `CountingAcquireRelease` class is referred to with the term
+`self.monitor.count`.
 
 ### Visualization
 
-The visualization of this state machine is as follows. Note how the transitions now are decorated with conditions. Note in particular how the `Acquire(thread,lock)` pattern leads to two different transitions, one with the condition `self.count < 3` and one with the negation `not(self.count < 3)` of that, corresponding to the `if`-statement in the body of that match case. The visualizer tracks such if-statements and accumulates their conditions, as well as the negation of these.
+The visualization of this state machine is as follows. 
+Note how the transitions now are decorated with conditions. 
+Note in particular how the `Acquire(thread,lock)` pattern leads 
+to two different transitions, one with the 
+condition `self.monitor.count < 3` and one with the 
+negation `not(self.monitor.count < 3)` of that, 
+corresponding to the `if`-statement in the 
+body of that match case. The visualizer 
+tracks such if-statements and accumulates their conditions, as well as the negation of these.
 
 <br>
 <p align="center">
@@ -589,10 +598,10 @@ Note that we could instead place the conditions on the transitions, as part of t
 ```python
 def transition(self, event):
   match event:
-    case Acquire(thread, lock) if self.row < 3:
-      self.row += 1
+    case Acquire(thread, lock) if self.monitor.count < 3:
+      self.monitor.count += 1
       return self.DoRelease(thread, lock)
-    case Acquire(thread, lock) if self.row >= 3:
+    case Acquire(thread, lock) if self.monitor.count >= 3:
       return error('more that 3 locks acquired')
 ```
 
@@ -1329,10 +1338,10 @@ class CommandExecution(Monitor):
     def transition(self, event):
         match event:
             case {'name': 'dispatch'}:
-                self.count += 1
+                self.monitor.count += 1
             case {'name': 'complete'}:
-                self.count -= 1
-                if self.count < 0:
+                self.monitor.count -= 1
+                if self.monitor.count < 0:
                     self.report_error('more completions than dispatches')
 ```
 
