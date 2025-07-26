@@ -198,6 +198,13 @@ The type of events. An event can be any Python value.
 Event = object
 
 
+"""
+The current monitor being evaluated. Is used from within states
+to access the monitor they are part of.
+"""
+__monitor__: object = None
+
+
 @data
 class State:
     """
@@ -248,7 +255,7 @@ class State:
         past time properties.
         :return: True of the state is in the state vector.
         """
-        return self.monitor.contains_state(self)
+        return __monitor__.contains_state(self)
 
     def __del__(self):
         """
@@ -812,6 +819,8 @@ class Monitor:
           necessary to call it on the topmost monitor.
           :param event: the submitted event.
           """
+        global __monitor__
+        __monitor__ = self
         self.event_count += 1
         if Debug.DEBUG_PROGRESS and self.is_top_monitor and self.event_count % Debug.DEBUG_PROGRESS == 0:
             self.debug(f'---------------------> {self.event_count}')

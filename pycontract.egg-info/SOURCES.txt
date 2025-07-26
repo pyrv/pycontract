@@ -12,6 +12,7 @@ pycontract/pycontract.py
 pycontract/pycontract_core.py
 pycontract/pycontract_csv.py
 pycontract/pycontract_plantuml.py
+pycontract/visualizer.py
 pycontract.egg-info/PKG-INFO
 pycontract.egg-info/SOURCES.txt
 pycontract.egg-info/dependency_links.txt
