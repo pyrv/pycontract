@@ -1211,7 +1211,7 @@ and `Executed` are colored dull yellow, similar to `NextState`s. The meaning is 
 Second, the transition out of the green `Always` state leads to two resulting states:
 `DoComplete(cmd, nr, time)` and `Dispatched(nr)`. This is graphically illustrated with a transition, annotated with event pattern (and conditions if present) going to a fat black horisontal line from which dashed arrows lead to each of the resulting states and their arguments after the `--->` arrow.
 
-## Exhaustive Transition Funtions
+## Exhaustive Transition Functions
 
 Writing a property where multiple _follow_-events have to happen after an _initiator_-event can be verbose since one has to create a state for each follow-event. This is due to the fact that when a transition is taken in a state, we usually leave that state. A solution to this problem is _exhaustive_ transition functions. To illustrate this concept, let's define the following property.
 
