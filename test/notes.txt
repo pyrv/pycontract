@@ -1,0 +1,7 @@
+
+Run all tests:
+python -m unittest discover -s test -p "test*.py" -t .
+
+Copy all files <file>.pu to <file>.test.pu
+for f in *.pu; do cp "$f" "${f%.pu}.test.pu"; done
+

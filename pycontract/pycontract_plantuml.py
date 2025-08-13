@@ -86,16 +86,47 @@ def exists(s: "Collection"):
         return False
     return check
 
+# ---\
+
+# def extends_state(bases : List[str]) -> bool:
+#     """
+#     Returns True if a state class is amongst a list of super classes
+#     'State', 'AlwaysState', 'HotState', 'NextState', and 'HotNextState'.
+#     :param bases: the super classes.
+#     :return:  True if a state class is amongst the super classes.
+#     """
+#     return intersects(bases, ['State', 'AlwaysState', 'HotState', 'NextState', 'HotNextState'])
 
 def extends_state(bases : List[str]) -> bool:
     """
     Returns True if a state class is amongst a list of super classes
     'State', 'AlwaysState', 'HotState', 'NextState', and 'HotNextState'.
+    Accepts also qualified names like 'pc.HotState'.
     :param bases: the super classes.
     :return:  True if a state class is amongst the super classes.
     """
-    return intersects(bases, ['State', 'AlwaysState', 'HotState', 'NextState', 'HotNextState'])
+    wanted = {'State', 'AlwaysState', 'HotState', 'NextState', 'HotNextState'}
+    short = [b.split('.')[-1] for b in bases]
+    return intersects(short, list(wanted))
 
+# ---/
+
+# ---\
+
+# def get_kind(bases: List[str]) -> "AstStateKind":
+#     """
+#     Extracts from a list of super classes what kind of state a class represents.
+#     :param bases: the super classes.
+#     :return: 'FINAL', 'HOT', 'NEXT', 'HOTNEXT', or 'ALWAYS'.
+#     """
+#     kind_map = {
+#         'State': AstStateKind.FINAL,
+#         'HotState': AstStateKind.HOT,
+#         'NextState': AstStateKind.NEXT,
+#         'HotNextState': AstStateKind.HOTNEXT,
+#         'AlwaysState': AstStateKind.ALWAYS
+#     }
+#     return kind_map[bases[0]]
 
 def get_kind(bases: List[str]) -> "AstStateKind":
     """
@@ -110,8 +141,10 @@ def get_kind(bases: List[str]) -> "AstStateKind":
         'HotNextState': AstStateKind.HOTNEXT,
         'AlwaysState': AstStateKind.ALWAYS
     }
-    return kind_map[bases[0]]
+    base_short = bases[0].split('.')[-1]
+    return kind_map[base_short]
 
+# ---/
 
 def mk_string(strings: List[str], separator: str) -> str:
     """
@@ -178,14 +211,28 @@ def find_transitions(source_state: str, event: str, conditions: List[str], stmts
                     transition = AstTransition(fork_state, None, None, target_state, args)
                     transitions += [transition]
             return transitions
-        elif isinstance(returned_expr, ast.Name) and returned_expr.id == 'ok':
-            transition = AstTransition(source_state, event, conditions, returned_expr.id, [], number)
+        # ---\
+        # elif isinstance(returned_expr, ast.Name) and returned_expr.id == 'ok':
+        #     transition = AstTransition(source_state, event, conditions, returned_expr.id, [], number)
+        #     return [transition]
+        # else:
+        #     # TODO:
+        #     # assert False,  f'returned expressions not a state: {ast.unparse(returned_expr)}'
+        #     transition = AstTransition(source_state, event, conditions, 'INTERNAL', [], number)
+        #     return [transition]
+        elif (isinstance(returned_expr, ast.Name) and returned_expr.id == 'ok') or \
+                (isinstance(returned_expr, ast.Attribute) and returned_expr.attr == 'ok'):
+            transition = AstTransition(source_state, event, conditions, 'ok', [], number)
+            return [transition]
+        elif (isinstance(returned_expr, ast.Name) and returned_expr.id == 'error') or \
+                (isinstance(returned_expr, ast.Attribute) and returned_expr.attr == 'error'):
+            transition = AstTransition(source_state, event, conditions, 'error', [], number)
             return [transition]
         else:
-            # TODO:
-            # assert False,  f'returned expressions not a state: {ast.unparse(returned_expr)}'
+            # Unrecognized literal/expr returned: keep diagram generation robust
             transition = AstTransition(source_state, event, conditions, 'INTERNAL', [], number)
             return [transition]
+        # ---/
     elif isinstance(stmt, ast.If):
         # If(expr test, stmt* body, stmt* orelse)
         true_condition = ast.unparse(stmt.test)
@@ -401,7 +448,10 @@ class AstMonitor:
         result = '@startuml\n'
         # result += '!theme plain\n'
         result += f'state {self.name}' + '{\n'
-        other_super_classes = [clazz for clazz in self.super_classes if clazz != 'Monitor']
+        # ---\
+        # other_super_classes = [clazz for clazz in self.super_classes if clazz != 'Monitor']
+        other_super_classes = [clazz for clazz in self.super_classes if clazz.split('.')[-1] != 'Monitor']
+        # ---/
         if other_super_classes:
             result += '  note as SUPER #aliceblue\n'
             result += f'   **extends** {mk_string(other_super_classes, ",")}\n'
@@ -423,6 +473,22 @@ class AstMonitor:
 # Analyzer #
 ############
 
+# ---\
+
+def _dotted_name(node: ast.AST) -> Optional[str]:
+    """
+    Return the dotted name for an AST node representing a name/attribute chain.
+    E.g., pc.Monitor -> "pc.Monitor", initial -> "initial".
+    """
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        left = _dotted_name(node.value)
+        return f"{left}.{node.attr}" if left else node.attr
+    return None
+
+# ---/
+
 class Analyzer(ast.NodeVisitor):
     """
     The AST visitor. Provides visitor functions for visiting nodes
@@ -442,14 +508,31 @@ class Analyzer(ast.NodeVisitor):
         self.monitors: List[AstMonitor] = []
         self.current_monitor: AstMonitor = None
         self.current_state: AstState = None
+        global fork_state_counter
+        fork_state_counter = 0
+
+# ---\
+
+    # def extends_monitor(self, bases: List[str]) -> bool:
+    #     """
+    #     Returns True if 'Monitor' is amongst a list of super classes.
+    #     :param bases: the direct super classes.
+    #     :return: True if 'Monitor' is amongst the super classes.
+    #     """
+    #     return 'Monitor' in bases or exists(self.monitors)(lambda m: m.name in bases)
 
     def extends_monitor(self, bases: List[str]) -> bool:
         """
         Returns True if 'Monitor' is amongst a list of super classes.
+        Accepts qualified names like 'pc.Monitor'.
         :param bases: the direct super classes.
         :return: True if 'Monitor' is amongst the super classes.
         """
-        return 'Monitor' in bases or exists(self.monitors)(lambda m: m.name in bases)
+        short_names = {b.split('.')[-1] for b in bases}
+        return ('Monitor' in short_names) or exists(self.monitors)(
+            lambda m: (m.name in bases) or (m.name in short_names))
+
+    # ---/
 
     def visit_ClassDef(self, node):
         """
@@ -458,7 +541,10 @@ class Analyzer(ast.NodeVisitor):
         - the inner classes of the monitor representing states
         :param node: the AST node to visit.
         """
-        bases = [base.id for base in node.bases if isinstance(base, ast.Name)]
+        # ---\
+        # bases = [base.id for base in node.bases if isinstance(base, ast.Name)]
+        bases = [name for name in (_dotted_name(b) for b in node.bases) if name]
+        # ---/
         if self.extends_monitor(bases):
             self.current_monitor = AstMonitor(node.name, bases)
             self.monitors.append(self.current_monitor)
@@ -491,9 +577,15 @@ class Analyzer(ast.NodeVisitor):
             self.generic_visit(node)
         else:
             if extends_state(bases):
-                decorators = [name.id for name in node.decorator_list]
-                init = 'initial' in decorators
-                data_class = 'data' in decorators
+                # ---\
+                # decorators = [name.id for name in node.decorator_list]
+                # init = 'initial' in decorators
+                # data_class = 'data' in decorators
+                decorators = [(_dotted_name(name) or '') for name in node.decorator_list]
+                decorator_short = {d.split('.')[-1] for d in decorators}
+                init = 'initial' in decorator_short
+                data_class = 'data' in decorator_short
+                # ---/
                 kind = get_kind(bases)
                 init_functions = [f for f in node.body if isinstance(f,ast.FunctionDef) and f.name == '__init__']
                 params = None
@@ -524,8 +616,8 @@ class Analyzer(ast.NodeVisitor):
                 self.current_monitor.states.append(self.current_state)
             event = node.args.args[1].arg
             transitions = find_transitions(self.current_state.name, event, [], node.body)
-            fork_states = set([transition.source for transition in transitions if is_fork_state(transition.source)])
-            for fork_state in fork_states:
+            fork_states = {transition.source for transition in transitions if is_fork_state(transition.source)}
+            for fork_state in sorted(fork_states):
                 state = AstState(fork_state, False, AstStateKind.FORK, [])
                 self.current_monitor.states.append(state)
             for transition in transitions:
@@ -541,7 +633,7 @@ class Analyzer(ast.NodeVisitor):
         for monitor in self.monitors:
             dir_name = os.path.dirname(__file__)
             jar_file = os.path.join(dir_name, 'lib/plantuml.jar')
-            monitor_file_prefix = monitor_file.strip('.py')
+            monitor_file_prefix = monitor_file[:-3] # drop .py
             plantuml_prefix = f'{monitor_file_prefix}.{monitor.name}'
             plantuml_source = f'{plantuml_prefix}.pu'
             plantuml_png = f'{plantuml_prefix}.png'
@@ -563,11 +655,12 @@ def visualize(monitor_file: str, png: bool = True):
     :param monitor_file: Python script containing monitors.
     :param png: True of a png file should be generated in addition to a plantuml source file.
     """
+    global fork_state_counter
+    fork_state_counter = 0
     with open(monitor_file, "r") as source:
         tree = ast.parse(source.read())
         analyzer = Analyzer()
         analyzer.visit(tree)
         analyzer.visualize(monitor_file, png)
-
 
 

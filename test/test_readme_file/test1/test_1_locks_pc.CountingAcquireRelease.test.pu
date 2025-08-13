@@ -1,0 +1,13 @@
+@startuml
+state CountingAcquireRelease{
+  [*] -> __Always__
+  state __Always__ #green
+  state Locked #yellow : thread : str\nlock : int
+  __Always__ --> Locked : **Acquire(thread, lock)**\nself.count < 3\n--->\n(thread,lock)
+  state error #red
+  __Always__ --> error : **Acquire(thread, lock)**\n__not__(self.count < 3)
+  state error #red
+  Locked --> error : 1 **Acquire(_, self.lock)**
+  Locked --> [*] : 2 **Release(self.thread, self.lock)**
+}
+@enduml

@@ -1,0 +1,9 @@
+@startuml
+state StartStop{
+  [*] -> Ready
+  state "Ready **next**" as Ready
+  state "Running **next**" as Running #yellow : task : int
+  Ready --> Running : **Start(task)**\n--->\n(task)
+  Running --> Ready : **Stop(self.task)**
+}
+@enduml
