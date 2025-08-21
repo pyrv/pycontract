@@ -1,6 +1,6 @@
 # PyContract
 
-Version 1.3.1
+Version 1.3.2
 
 PyContract is an internal Python DSL for writing event stream monitors. It is based on state machines but extends them in two fundamental ways. First, in addition to control states the user can also define variables, updated and queried on transitions (what is also called extended finite state machines). Second, states can be parameterized with data. The underlying concept is that at any point during monitoring there is a set of _active states_, also referred to as the _"state vector"_. States can be added to this set by taking state to state transitions (target states are added), and can be removed from this vector by leaving states as a result of transitions. Each state in the vector can itself monitor the incoming event stream. The user can mix state machines with regular Python code as desired. 
 
@@ -1829,6 +1829,86 @@ The visualization of this state machine is as follows.
   <img src="test/test_readme_file/test8/test-8-indexing.PastAcquireRelease.png" />
 </p>
 <br>
+
+## Event Buffering with a Window
+
+Sometimes events arrive slightly out of order, 
+or multiple events share the same timestamp, in which
+case we may not be able to trust the ordering of events
+with the same time stamp.
+To make specifications robust, PyContract supports 
+an optional buffered window. When enabled, incoming 
+events are temporarily stored in a small buffer of a user 
+specified size, and 
+then processed in a stable, deterministic order 
+defined by a user‑supplied key for sorting.
+
+### How it works
+
+- Set a small `WINDOW_SIZE` (e.g., 3).
+- Define (override) the `window_key(self, e)` method to rank events (e.g., by time, then a tie‑breaker).
+- The monitor’s `eval(e)` then inserts e into a priority queue of size ≤ WINDOW_SIZE, 
+  then delivers the lowest event to the monitor.
+
+### Example
+
+Consider the property that every `Acquire(time, thread, lock)` 
+must eventually be followed by a `Release(time, thread, lock)`, and that each event
+has a time stamp. If an `Acquire` event and a `Release` event occur at the
+same time, we can't rely on the ordering of the two, which would make the modeling
+complicated, unless we pull the window trick, which the 
+following monitor does.
+
+```python
+@data
+class Timed(Event):
+    time: int
+
+@data
+class Acquire(Timed):
+    thread: str
+    lock: int
+
+@data
+class Release(Timed):
+    thread: str
+    lock: int
+
+class ReleaseAfterAcquire(Monitor):
+    """
+    Enforce: every Acquire must followed a Release.
+    """
+
+    WINDOW_SIZE = 3  # enable buffered processing
+
+    def window_key(self, e):
+        """
+        Sort by time; break ties so Acquire is processed before Release.
+        """
+        order = {Acquire: 0, Release: 1}
+        return (e.time, order.get(type(e), 99))
+
+    def transition(self, event):
+        match event:
+            case Acquire(thread, lock):
+                return self.Acquired(thread, lock)
+
+    @data
+    class Acquired(HotState):
+        thread: str
+        lock: int
+
+        def transition(self, event):
+            match event:
+                case Release(self.thread, self.lock):
+                    return ok
+```
+
+Note that `window_key` returns a tuple (time, order). Time
+is then the main sorting key, and it the time values
+are equal, then the order between
+`Acquire` and `Release`, with `Acquire`
+before `Release`.
 
 ## Producing JSONL files
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 import sys
 import json
 from dataclasses import dataclass
-import copy
 import inspect
-from abc import ABC
+import heapq
+import itertools
 from typing import List, Set, Dict, Callable, Optional, Any, Tuple, Iterable, Union
 
 
@@ -694,6 +694,68 @@ class Monitor:
     ended_monitors: Set['Monitor'] = set()
     jsonl_filename: Optional[str] = "pycontract_log.jsonl"
     jsonl_file: Optional[Any] = None
+
+    # ---- Buffered feed begin: ----
+
+    # Set WINDOW_SIZE > 1 and override event_key() in a subclass to enable buffering.
+
+    WINDOW_SIZE = 1  # N=1 means no buffering by default
+
+    def window_key(self, event):
+        """Override in subclass to return a total ordering key, e.g., (time, rank)."""
+        return None
+
+    def __init_subclass__(cls, **kwargs):
+        """
+        If a subclass sets WINDOW_SIZE > 1 *and* overrides event_key(), we
+        transparently wrap its eval/end to provide a windowed, ordered feed.
+        """
+        super().__init_subclass__(**kwargs)
+
+        # Opt-in only if subclass *overrides* event_key and asks for a window
+        wants_buffer = getattr(cls, "WINDOW_SIZE", 1) > 1 and ("window_key" in cls.__dict__)
+        if not wants_buffer:
+            return
+
+        # Keep originals and expose escape hatches (optional but handy)
+        original_eval = cls.eval
+        original_end = cls.end
+        cls._eval_unbuffered = original_eval
+        cls._end_unbuffered = original_end
+
+        def buffered_eval(self, event):
+            # Lazy-init per-instance heap and sequence
+            if not hasattr(self, "_w_heap"):
+                self._w_heap = []                # items: (key, seq, event)
+                self._w_seq = itertools.count()  # stable tie-break for equal keys
+
+            N = getattr(self, "WINDOW_SIZE", 1)
+            if N <= 1:
+                # Safety: if subclass toggles WINDOW_SIZE at runtime
+                return original_eval(self, event)
+
+            k = self.window_key(event)
+            # Keep seq BEFORE event so Python never compares event objects
+            heapq.heappush(self._w_heap, (k, next(self._w_seq), event))
+
+            # After each eval, if buffer reached N, emit the earliest one
+            if len(self._w_heap) == N:
+                _, _, e = heapq.heappop(self._w_heap)
+                return original_eval(self, e)
+
+        def buffered_end(self):
+            # Flush any remaining buffered events in order
+            if hasattr(self, "_w_heap"):
+                while self._w_heap:
+                    _, _, e = heapq.heappop(self._w_heap)
+                    original_eval(self, e)
+            return original_end(self)
+
+        # Activate buffered behavior for this subclass
+        cls.eval = buffered_eval
+        cls.end = buffered_end
+
+    # ---- Buffered feed end ----
 
     @classmethod
     def reset(cls):
