@@ -313,7 +313,7 @@ For the monitor above the following state machine is generated:
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test1/test-1-locks.AcquireRelease.png" />
+  <img src="test/test_readme_file/test1/test_1_locks.AcquireRelease.png" />
 </p>
 <br>
 
@@ -587,7 +587,7 @@ tracks such if-statements and accumulates their conditions, as well as the negat
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test1/test-1-locks.CountingAcquireRelease.png" />
+  <img src="test/test_readme_file/test1/test_1_locks.CountingAcquireRelease.png" />
 </p>
 <br>
 
@@ -622,7 +622,7 @@ the order of transitions from the `Always` state matter, which is resolved by th
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test1/test-1-locks.ConditionedAcquireRelease.png" />
+  <img src="test/test_readme_file/test1/test_1_locks.ConditionedAcquireRelease.png" />
 </p>
 <br>
 
@@ -685,7 +685,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test6/test-6-exists.PastAcquireRelease.png" />
+  <img src="test/test_readme_file/test6/test_6_exists.PastAcquireRelease.png" />
 </p>
 <br>
 
@@ -784,7 +784,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test6/test-6-exists.FlexiblePastAcquireRelease.png" />
+  <img src="test/test_readme_file/test6/test_6_exists.FlexiblePastAcquireRelease.png" />
 </p>
 <br>
 
@@ -959,7 +959,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test2/test-2-start-sto.StartStop.png" />
+  <img src="test/test_readme_file/test2/test_2_start_stop.StartStop.png" />
 </p>
 <br>
 
@@ -1048,7 +1048,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test3/test-3-start-stop-propositional.StartStop.png" />
+  <img src="test/test_readme_file/test3/test_3_start_stop_propositional.StartStop.png" />
 </p>
 <br>
 
@@ -1201,7 +1201,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test4/test-4-commands.CommandExecution.png" />
+  <img src="test/test_readme_file/test4/test_4_commands.CommandExecution.png" />
 </p>
 <br>
 
@@ -1355,7 +1355,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test5/test-5-only-sideeffects.CommandExecution.png" />
+  <img src="test/test_readme_file/test5/test_5_only_sideeffects.CommandExecution.png" />
 </p>
 <br>
 
@@ -1400,13 +1400,13 @@ The visualization of these state machines is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitor1.png" />
+  <img src="test/test_readme_file/test7/test_7_multiple_monitors.Monitor1.png" />
 </p>
 <p align="center">
-  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitor2.png" />
+  <img src="test/test_readme_file/test7/test_7_multiple_monitors.Monitor2.png" />
 </p>
 <p align="center">
-  <img src="test/test_readme_file/test7/test-7-multiple-monitors.Monitors.png" />
+  <img src="test/test_readme_file/test7/test_7_multiple_monitors.Monitors.png" />
 </p>
 <br>
 
@@ -1641,7 +1641,7 @@ The `LockMonitor`, which just defines the `key` method, is visualized as follows
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test8/test-8-indexing.LockMonitor.png" />
+  <img src="test/test_readme_file/test8/test_8_indexing.LockMonitor.png" />
 </p>
 <br>
 
@@ -1649,7 +1649,7 @@ The `AcquireRelease` monitor is visualized as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test8/test-8-indexing.AcquireRelease.png" />
+  <img src="test/test_readme_file/test8/test_8_indexing.AcquireRelease.png" />
 </p>
 <br>
 
@@ -1826,7 +1826,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test8/test-8-indexing.PastAcquireRelease.png" />
+  <img src="test/test_readme_file/test8/test_8_indexing.PastAcquireRelease.png" />
 </p>
 <br>
 
@@ -2096,7 +2096,7 @@ The visualization of this state machine is as follows.
 
 <br>
 <p align="center">
-  <img src="test/test_readme_file/test9/test-9-csv.CommandExecution.png" />
+  <img src="test/test_readme_file/test9/test_9_csv.CommandExecution.png" />
 </p>
 <br>
 
