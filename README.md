@@ -871,7 +871,10 @@ trace = [Start(1), Stop(1), Start(2), Stop(2)]
 m.verify(trace)
 ```
 
-This time we call the `verify(trace: List[Event])` method on the monitor. It calls the `eval(event: Event)` method on each event in the trace and calls `end()` after processing all events in the trace.
+This time we call the `verify(trace: List[Event])` method on the monitor. 
+It calls the `eval(event: Event)` method on each event in the trace and 
+calls `end()` after processing all events in the trace. It returns True
+iff. no errors have been detected (the use of this return value is not shown here).
 
 ## Composite States
 

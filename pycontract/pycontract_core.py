@@ -989,16 +989,18 @@ class Monitor:
             self.print_debug_summary()
             self.print_summary()
 
-    def verify(self, trace: List[Event]):
+    def verify(self, trace: List[Event]) -> bool:
         '''
         Verifies a trace, which is a list of events.
         It calls `eval` on each event and calls `end()` at the
         end of the trace.
         :param trace: the trace.
+        :return: True iff no errors have been detected.
         '''
         for event in trace:
             self.eval(event)
         self.end()
+        return not self.errors_found()
 
     def __str__(self) -> str:
         monitor_name = self.__class__.__name__
