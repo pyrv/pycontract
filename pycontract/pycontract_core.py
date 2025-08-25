@@ -8,8 +8,7 @@ from dataclasses import dataclass
 import inspect
 import heapq
 import itertools
-from typing import List, Set, Dict, Callable, Optional, Any, Tuple, Iterable, Union
-
+from typing import List, Set, Dict, Callable, Optional, Any, Tuple, Iterable, Union, TypeVar
 
 # ANSI color codes
 COLOR_RED = '\033[91m'
@@ -19,9 +18,9 @@ COLOR_BLUE = '\033[94m'     # Blue
 COLOR_RESET = '\033[0m'
 
 
+T = TypeVar("T", bound=type)
 
-
-def data(cls):
+def data(cls: T) -> T:
     """
     Decorator for decorating events and states, allowing to
     declare parameters more easily than with __init__.
