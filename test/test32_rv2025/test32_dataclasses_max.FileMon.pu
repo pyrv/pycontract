@@ -1,0 +1,17 @@
+@startuml
+state FileMon{
+  [*] -> __Always__
+  state __Always__ #green
+  state Folder : folder : str
+  state File #yellow : folder : str\nname : str\nmode : Mode\nsize : int
+  __Always__ --> Folder : 1 **Create(folder)**\n--->\n(folder)
+  __Always__ --> File : 2 **Open(folder, filename, mode, size)**\n--->\n(folder,filename,mode,size)
+  state error #red
+  __Always__ --> error : 3 **Write(filename=f)**\nnot self.exists(FileMon.File, name=f)
+  Folder --> [*] : **Delete(self.folder)**
+  state error #red
+  File --> error : 1 **Delete(self.folder)**
+  File --> [*] : 2 **Close(self.name)**
+  File --> File : 3 **Write(self.name, data)**\n--->\n(self.folder,self.name,self.mode,self.size - len(data))
+}
+@enduml
