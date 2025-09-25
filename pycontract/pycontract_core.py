@@ -4,7 +4,7 @@ PyContract
 from __future__ import annotations
 import sys
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass, fields
 import inspect
 import heapq
 import itertools
@@ -1040,7 +1040,47 @@ class Monitor:
         :param state: the state to become initial states.
         """
         state.set_monitor_to(self)
-        states.add(state)
+        try:
+            states.add(state)
+        except TypeError:
+            cls = type(state)
+            if is_dataclass(state):
+                bad = []
+                for f in fields(state):
+                    # Only fields that participate in eq/hash
+                    participates = (f.compare or (f.hash is not False))
+                    if not participates:
+                        continue
+                    try:
+                        v = getattr(state, f.name)
+                    except Exception:
+                        bad.append(f"{f.name}:<unreadable>")
+                        continue
+                    try:
+                        hash(v)
+                    except TypeError:
+                        bad.append(f"{f.name}:{type(v).__name__}")
+                if bad:
+                    print(
+                        f"[FATAL] Unhashable state {cls.__module__}.{cls.__qualname__}.\n"
+                        f"Non-hashable fields used in hashing: {', '.join(bad)}.\n"
+                        f"Fix: exclude from hashing with id:ty = field(compare=False, hash=False).",
+                        file=sys.stderr,
+                    )
+                else:
+                    print(
+                        f"[FATAL] Unhashable state {cls.__module__}.{cls.__qualname__}.\n"
+                        "Could not isolate a participating field; consider excluding mutable fields\n"
+                        "from equality/hash or provide a custom __hash__.",
+                        file=sys.stderr,
+                    )
+            else:
+                print(
+                    f"[FATAL] Unhashable state {cls.__module__}.{cls.__qualname__} (not a dataclass).\n"
+                    "Provide __hash__ or use only immutable fields.",
+                    file=sys.stderr,
+                )
+            sys.exit(2)
 
     def report_transition_error(self, state: State, event: Event, error_state: ErrorState):
         """

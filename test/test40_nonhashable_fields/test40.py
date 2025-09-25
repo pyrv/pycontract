@@ -1,26 +1,25 @@
+
+from test import utest
+from dataclasses import field
 import pycontract as pc
 
-@pc.data
-class M1(pc.Monitor):
-    x: dict
-
-    def transition(self, event):
-        pass
-
-@pc.data
-class M2(pc.Monitor):
-    x: dict
-
-    def transition(self, event):
-        pass
+"""
+Tests that a state with unhashable field results in a proper system exit.
+"""
 
 class M(pc.Monitor):
-    def __init__(self):
-        super().__init__()
-        self.monitor_this(M1({'a':1}), M2({'a':1}))
+    def transition(self, event):
+        return M.S(event, {'e': event})
 
-if __name__ == "__main__":
-    m = M()
-    pc.visualize(__file__)
+    @pc.data
+    class S(pc.State):
+        e: int
+        d: dict
 
+class TestExit(utest.Test):
+    def test_exit_code(self):
+        m = M()
+        with self.assertRaises(SystemExit) as cm:
+            m.eval(1)
+        self.assertEqual(cm.exception.code, 2)
 
