@@ -690,7 +690,7 @@ class Message:
 
 class Monitor:
     debug_messages: List[str] = []
-    ended_monitors: Set['Monitor'] = set()
+    ended_monitors: set[int] = set()  # store ids, not objects
     jsonl_filename: Optional[str] = "pycontract_log.jsonl"
     jsonl_file: Optional[Any] = None
 
@@ -965,9 +965,10 @@ class Monitor:
         so it only needs to be called on the top-most monitor.
         """
         # Idempotency check: prevent multiple executions and infinite loops.
-        if self in Monitor.ended_monitors:
+        mid = id(self)
+        if mid in Monitor.ended_monitors:
             return
-        Monitor.ended_monitors.add(self)
+        Monitor.ended_monitors.add(mid)
 
         if self.is_top_monitor:
             print()
@@ -1184,24 +1185,21 @@ class Monitor:
         its sub-monitors, and any chained monitors held as attributes.
         :return: A list of all messages.
         """
-        all_msgs = []
-        visited = set()
+        all_msgs: list[Message] = []
+        visited_ids: set[int] = set()
 
-        def _collect(monitor: Monitor):
-            if monitor in visited:
+        def _collect(m: "Monitor"):
+            mid = id(m)
+            if mid in visited_ids:
                 return
-            visited.add(monitor)
+            visited_ids.add(mid)
 
-            all_msgs.extend(monitor.messages)
-
-            # Recurse through sub-monitors (e.g., from always)
-            for sub_monitor in monitor.monitors:
-                _collect(sub_monitor)
-
-            # Recurse through chained monitors (held as attributes)
-            for attr_value in monitor.__dict__.values():
-                if isinstance(attr_value, Monitor):
-                    _collect(attr_value)
+            all_msgs.extend(m.messages)
+            for sub in m.monitors:
+                _collect(sub)
+            for v in m.__dict__.values():
+                if isinstance(v, Monitor) and v is not m:
+                    _collect(v)
 
         _collect(self)
         return all_msgs

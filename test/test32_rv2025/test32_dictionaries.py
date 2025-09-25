@@ -3,7 +3,6 @@
 from enum import Enum
 import pycontract as pc
 
-
 """
 Consider a simple filesystem mechanism that handles several key events. 
 
