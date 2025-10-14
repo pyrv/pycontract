@@ -1,0 +1,18 @@
+monitor: Locking
+states:
+  - name: Always
+    kind: AlwaysState
+    initial: true
+    transitions:
+      - match: "Acquire(thread, lock)"
+        target: Locked
+        args: ["thread", "lock"]
+
+  - name: Locked
+    kind: HotState
+    parameters: ["thread", "lock"]
+    transitions:
+      - match: "Acquire(_, self.lock)"
+        action: "return error('lock re-acquired')"
+      - match: "Release(self.thread, self.lock)"
+        action: "return ok"

@@ -1,0 +1,11 @@
+@startuml
+state Locking{
+  [*] -> Always
+  state Always #green
+  state Locked #yellow : thread : object\nlock : object
+  Always --> Locked : **Acquire(thread, lock)**\n--->\n(thread,lock)
+  state error #red
+  Locked --> error : 1 **Acquire(_, self.lock)**
+  Locked --> [*] : 2 **Release(self.thread, self.lock)**
+}
+@enduml

@@ -1,0 +1,31 @@
+
+TODO for Pyco
+
+--- WAIT ---
+
+[ ] Reacting to errors .. callbacks?
+[ ] Real time
+[ ] invariants in monitor?
+[ ] do construct on events
+[ ] initializing a state with arguments
+[ ] Statement language.
+[ ] Other ways of providing extra output, labels
+[ ] Parameters to monitors, are other monitors parameters?, do we make instances of monitors
+[ ] upto/accepton/rejecton
+[ ] expression language still needs refinement
+
+--- DONE ---
+
+[x] comments
+[x] ignore
+[x] string arguments to ok and error
+[x] Expression language - <code>, and, or, not, (...), exists
+[x] exists
+[x] function calls in statements
+[x] assertions
+[x] positional arguments and underscore for states
+[x] Distinction between event pattern and submitted event.
+[x] Definition of events, Indication of event type?
+[x] Arithmetic and relational expressions
+
+--- END ---

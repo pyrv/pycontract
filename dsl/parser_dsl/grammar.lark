@@ -1,0 +1,153 @@
+// ---------- Imports & basics ----------
+%import common.CNAME          -> NAME
+%import common.SIGNED_NUMBER  -> NUMBER
+%import common.ESCAPED_STRING -> STRING
+%import common.WS_INLINE
+%import common.NEWLINE
+
+%ignore WS_INLINE
+%ignore NEWLINE
+COMMENT: /#[^\n]*/
+%ignore COMMENT
+MLCOMMENT.2: /'''[\s\S]*?'''|\"\"\"[\s\S]*?\"\"\"/
+%ignore MLCOMMENT
+
+// ---------- Names ----------
+
+NAMEQ.2: /[A-Za-z_][A-Za-z_0-9]*\?/
+
+// ---------- Keywords ----------
+EVENT:    "event"
+EVENTS:   "events"
+MONITOR:  "monitor"
+IGNORE:   "ignore"
+STATE:    "state"
+HOTSTATE: "hot"
+NEXTSTATE: "next"
+HOTNEXTSTATE: "notnext"
+ALWAYSSTATE: "always"
+INITIAL:  "initial"
+CASE:     "case"
+VETO:     "veto"
+OK:       "ok"
+ERROR:    "error"
+AND:      "and"
+OR:       "or"
+SEQ:      "seq"
+NOT:      "not"
+INCLUDE:  "include"
+IF:       "if"
+WHERE:    "where"
+EXISTS:   "exists"
+CALL:     "call"
+ASSERT:   "assert"
+OKIF:     "okif"
+
+// ---------- Punctuation ----------
+LBRACE: "{"
+RBRACE: "}"
+LPAREN: "("
+RPAREN: ")"
+LBRACKET: "["
+RBRACKET: "]"
+COMMA:  ","
+COLON:  ":"
+LE: "<="
+GE: ">="
+LT: "<"
+GT: ">"
+PLUS: "+"
+MINUS: "-"
+TIMES: "*"
+DIV: "/"
+EQUAL: "="
+NOTEQUAL: "!="
+ARROW:  "->"
+DARROW: "=>"
+QMARK: "?"
+BANG:  "!"
+UNDERSCORE: "_"
+
+// ---------- Python Code -----------
+
+PYCODE.2: /\{\:[\s\S]*?\:\}/
+
+// ---------- Types ----------
+
+TYPE_INT:   "int"
+TYPE_FLOAT: "float"
+TYPE_STR:   "str"
+
+// ---------- Grammar ----------
+
+start: eventdef* monitor*
+
+eventdef: oneeventdef | multieventdef
+oneeventdef: EVENT eventsignature
+eventsignature: NAME parameters?
+multieventdef: EVENTS NAME LBRACE eventsignature+ RBRACE
+parameters: LPAREN param_list RPAREN
+param_list: param (COMMA param)*
+param: NAME COLON type
+type: TYPE_INT | TYPE_FLOAT | TYPE_STR
+
+monitor: IGNORE? MONITOR NAME typeparam? LBRACE include? PYCODE? transition* state* RBRACE
+
+typeparam: LBRACKET NAME RBRACKET
+
+include: INCLUDE name_list
+name_list: NAME (COMMA NAME)*
+
+transition: case | veto
+case: CASE eventpat COLON? statement* targetstate_list?
+eventpat: NAME argumentpats? condition?
+argumentpats: LPAREN argpat_list? RPAREN
+argpat_list: argpat (COMMA argpat)*
+argpat: NAME EQUAL valuepat | valuepat | UNDERSCORE
+valuepat: NAME | NAMEQ | NUMBER | STRING
+condition: IF expr
+veto: VETO eventpat
+
+statement: CALL func_call | ASSERT LPAREN expr RPAREN | submit_stmt | PYCODE
+submit_stmt: NAME BANG event
+event: NAME arguments?
+
+targetstate_list: targetstate (COMMA targetstate)*
+targetstate: eventsequence atomictargetstate? | atomictargetstate
+
+eventsequence: LBRACKET eventspec+ RBRACKET
+eventspec: (QMARK | BANG)? eventpat
+
+atomictargetstate: stateinstance | ok | error | inlinedstate | compositestate | compositenotstate
+stateinstance: NAME arguments?
+ok: OK message? | OKIF LPAREN expr RPAREN message?
+error: ERROR message?
+message: LPAREN STRING RPAREN
+inlinedstate: statetype statebody
+compositestate: composer LBRACKET targetstate_list RBRACKET
+composer: AND | OR | SEQ
+compositenotstate: NOT targetstate
+
+state: INITIAL? statetype NAME parameters? statebody?
+statetype: STATE | HOTSTATE | NEXTSTATE | HOTNEXTSTATE | ALWAYSSTATE
+statebody: LBRACE transition* RBRACE
+
+expr: or_expr
+or_expr: or_expr OR and_expr | and_expr
+and_expr: and_expr AND not_expr | not_expr
+not_expr: NOT not_expr | compare
+compare: sum ((LT|LE|GT|GE|EQUAL|NOTEQUAL) sum)?
+sum: sum PLUS product | sum MINUS product | product
+product: product TIMES unary | product DIV   unary | unary
+unary: MINUS unary | primary
+primary: NUMBER
+        | STRING
+        | NAME
+        | func_call
+        | PYCODE
+        | EXISTS NAME argumentpats? (WHERE expr)?
+        | LPAREN expr RPAREN
+func_call: NAME arguments
+arguments: LPAREN arg_list? RPAREN
+arg_list: arg (COMMA arg)*
+arg: NAME EQUAL expr | expr

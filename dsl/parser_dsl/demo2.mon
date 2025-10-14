@@ -1,0 +1,27 @@
+
+"""
+Command execution, inspired by LogScope.
+"""
+
+events Exec {
+  Command(name: str, time: int, number: int)
+  Dispatch(name: str, time: int, number: int)
+  DispatchFailure(name: str, time: int, number: int)
+  ExecutionFailure(name: str, time: int, number: int)
+  Complete(name: str, time: int, number: int)
+}
+
+"""
+Requirement:
+
+Whenever a flight software command is issued, there should follow a dispatch of that command and exactly one success
+of that command, in no particular required order. There should be no dispatch failure and no failure at any time
+"""
+
+monitor CorrectExecutionLogScope {
+  case Command(name = n?, number = x?):
+     [Dispatch(name=n, number=n)],
+     [Complete(name=n, number=n) !Complete(name=n, number=n)],
+     [!DispatchFailure(name=n, number=x) !ExecutionFailure(name=n, number=x)]
+}
+

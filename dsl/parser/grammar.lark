@@ -1,0 +1,39 @@
+// mon_dsl_grammar.lark (whitespace-insensitive)
+
+%import common.CNAME -> NAME
+%import common.WS_INLINE
+%import common.NEWLINE
+%import common.ESCAPED_STRING
+
+%ignore WS_INLINE
+%ignore NEWLINE
+
+COLON: ":"
+ARROW: "->"
+LPAR: "("
+RPAR: ")"
+COMMA: ","
+UNDERSCORE: "_"
+
+start: monitor
+
+monitor: "monitor" NAME state*
+
+state: "state" NAME parameters? COLON state_body
+state_body: kind initial? transition_block
+
+parameters: LPAR param_list? RPAR
+param_list: arg (COMMA arg)*
+arg: NAME | UNDERSCORE
+
+kind: "kind" NAME
+initial: "initial"
+
+transition_block: "transitions" COLON transition+
+transition: NAME arguments? ARROW (target | action)
+
+target: NAME arguments?
+arguments: LPAR arg_list? RPAR
+arg_list: arg (COMMA arg)*
+
+action: "ok" | "error" LPAR ESCAPED_STRING RPAR

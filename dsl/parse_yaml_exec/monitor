@@ -1,0 +1,5 @@
+digraph Locking {
+	Always [color=green shape=box]
+	Locked [color=red shape=box]
+	Always -> Locked [label="Acquire(thread, lock)"]
+}

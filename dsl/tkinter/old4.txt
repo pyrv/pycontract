@@ -1,0 +1,234 @@
+# draw_state_machine.py
+
+import tkinter as tk
+from tkinter import simpledialog, Toplevel, Text, Scrollbar, VERTICAL, RIGHT, Y, END, messagebox, StringVar
+import math
+
+class State:
+    def __init__(self, name, x, y, kind="Normal", initial=False):
+        self.name = name
+        self.x = x
+        self.y = y
+        self.kind = kind
+        self.initial = initial
+
+class Transition:
+    def __init__(self, src, dst, label=""):
+        self.src = src
+        self.dst = dst
+        self.label = label
+        self.text_id = None
+        self.rect_id = None
+
+class StateMachineDrawer:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Draw State Machine")
+
+        self.panel = tk.Frame(root)
+        self.panel.pack(side=tk.LEFT, fill=tk.Y)
+
+        self.initial_state_var = tk.BooleanVar()
+        self.initial_checkbox = tk.Checkbutton(self.panel, text="Initial", variable=self.initial_state_var)
+        self.initial_checkbox.pack(pady=10)
+
+        self.state_kind_var = StringVar(value="Normal")
+        self.kinds = ["Normal", "Final", "Hot", "Cold"]
+        tk.Label(self.panel, text="State Kind:").pack()
+        for kind in self.kinds:
+            b = tk.Radiobutton(self.panel, text=kind, variable=self.state_kind_var, value=kind)
+            b.pack(anchor="w")
+
+        self.canvas = tk.Canvas(root, width=800, height=600, bg="white")
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.states = []
+        self.transitions = []
+        self.dragging_state = None
+        self.transition_start = None
+        self.drag_start_coords = None
+        self.label_editing = None
+        self.selected_state = None
+
+        self.canvas.bind("<Button-1>", self.left_click)
+        self.canvas.bind("<Shift-Button-1>", self.shift_click)
+        self.canvas.bind("<B1-Motion>", self.drag)
+        self.canvas.bind("<ButtonRelease-1>", self.drop)
+        self.canvas.bind("<Double-Button-1>", self.double_click)
+        self.canvas.bind("<Button-3>", self.right_click)
+        self.root.bind("<Command-x>", self.command_x)
+
+        export_btn = tk.Button(self.panel, text="Export State Machine", command=self.export)
+        export_btn.pack(pady=20)
+
+    def left_click(self, event):
+        clicked_state = self.get_state_at(event.x, event.y)
+        if clicked_state is None and not self.clicked_label(event.x, event.y):
+            name = simpledialog.askstring("Input", "State name:", parent=self.root)
+            if name:
+                kind = self.state_kind_var.get()
+                initial = self.initial_state_var.get()
+                self.states.append(State(name, event.x, event.y, kind=kind, initial=initial))
+                self.redraw()
+        else:
+            self.selected_state = clicked_state
+
+    def shift_click(self, event):
+        clicked_state = self.get_state_at(event.x, event.y)
+        if self.transition_start:
+            if clicked_state and clicked_state != self.transition_start:
+                label = self.multiline_input("Transition label")
+                self.transitions.append(Transition(self.transition_start, clicked_state, label or ""))
+                self.transition_start = None
+                self.redraw()
+            else:
+                self.transition_start = None
+                self.redraw()
+        elif clicked_state:
+            self.transition_start = clicked_state
+            self.redraw()
+
+    def drag(self, event):
+        if not self.dragging_state:
+            self.dragging_state = self.get_state_at(event.x, event.y)
+        if self.dragging_state:
+            self.dragging_state.x = event.x
+            self.dragging_state.y = event.y
+            self.redraw()
+
+    def drop(self, event):
+        self.dragging_state = None
+
+    def double_click(self, event):
+        clicked_state = self.get_state_at(event.x, event.y)
+        if clicked_state:
+            new_name = simpledialog.askstring("Edit State Name", "New name:", initialvalue=clicked_state.name)
+            if new_name:
+                clicked_state.name = new_name
+                self.redraw()
+            return
+
+        for t in self.transitions:
+            if t.text_id:
+                bbox = self.canvas.bbox(t.text_id)
+                if bbox and bbox[0] <= event.x <= bbox[2] and bbox[1] <= event.y <= bbox[3]:
+                    new_label = self.multiline_input("Edit Transition Label", initial=t.label)
+                    if new_label is not None:
+                        t.label = new_label
+                        self.redraw()
+                    return
+
+    def right_click(self, event):
+        clicked_state = self.get_state_at(event.x, event.y)
+        if clicked_state:
+            if messagebox.askyesno("Delete", f"Delete state '{clicked_state.name}'?"):
+                self.states = [s for s in self.states if s != clicked_state]
+                self.transitions = [t for t in self.transitions if t.src != clicked_state and t.dst != clicked_state]
+                self.redraw()
+
+    def command_x(self, event):
+        if self.selected_state:
+            if messagebox.askyesno("Delete", f"Delete state '{self.selected_state.name}'?"):
+                self.states = [s for s in self.states if s != self.selected_state]
+                self.transitions = [t for t in self.transitions if t.src != self.selected_state and t.dst != self.selected_state]
+                self.selected_state = None
+                self.redraw()
+
+    def get_state_at(self, x, y):
+        for state in self.states:
+            if (state.x - x)**2 + (state.y - y)**2 <= 20**2:
+                return state
+        return None
+
+    def clicked_label(self, x, y):
+        overlapping = self.canvas.find_overlapping(x, y, x, y)
+        for oid in overlapping:
+            if "label" in self.canvas.gettags(oid):
+                return True
+        return False
+
+    def multiline_input(self, title, initial=""):
+        dialog = Toplevel(self.root)
+        dialog.title(title)
+        text_widget = Text(dialog, wrap="word", height=10, width=40)
+        text_widget.insert("1.0", initial)
+        text_widget.pack(side="left", fill="both", expand=True)
+        scrollbar = Scrollbar(dialog, command=text_widget.yview, orient=VERTICAL)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        text_widget.config(yscrollcommand=scrollbar.set)
+
+        dialog.resizable(True, True)
+
+        result = {}
+
+        def submit():
+            result["text"] = text_widget.get("1.0", END).strip()
+            dialog.destroy()
+
+        submit_btn = tk.Button(dialog, text="OK", command=submit)
+        submit_btn.pack()
+        text_widget.focus_set()
+        self.root.wait_window(dialog)
+        return result.get("text", None)
+
+    def draw_arrow(self, x1, y1, x2, y2, label=""):
+        dx = x2 - x1
+        dy = y2 - y1
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return
+        offset = 20
+        ratio = (dist - offset) / dist
+        x1_adj = x1 + dx * offset / dist
+        x2_adj = x1 + dx * ratio
+        y1_adj = y1 + dy * offset / dist
+        y2_adj = y1 + dy * ratio
+        self.canvas.create_line(x1_adj, y1_adj, x2_adj, y2_adj, arrow=tk.LAST)
+        if label:
+            mx = (x1_adj + x2_adj) / 2
+            my = (y1_adj + y2_adj) / 2
+            text_id = self.canvas.create_text(mx, my, text=label, anchor="nw", width=200, justify="left", tags="label")
+            bbox = self.canvas.bbox(text_id)
+            if bbox:
+                rect_id = self.canvas.create_rectangle(bbox, fill="white", outline="gray", tags="label")
+                self.canvas.tag_lower(rect_id, text_id)
+
+            for t in self.transitions:
+                if t.src == self.get_state_at(x1, y1) and t.dst == self.get_state_at(x2, y2) and t.label == label:
+                    t.text_id = text_id
+                    t.rect_id = rect_id
+
+    def redraw(self):
+        self.canvas.delete("all")
+        for t in self.transitions:
+            t.text_id = None
+            t.rect_id = None
+        for t in self.transitions:
+            self.draw_arrow(t.src.x, t.src.y, t.dst.x, t.dst.y, t.label)
+        for s in self.states:
+            color = {
+                "Normal": "lightblue",
+                "Final": "lightgreen",
+                "Hot": "orange",
+                "Cold": "lightgray"
+            }.get(s.kind, "lightblue")
+            self.canvas.create_oval(s.x - 20, s.y - 20, s.x + 20, s.y + 20, fill=color)
+            self.canvas.create_text(s.x, s.y, text=s.name)
+            if s.initial:
+                self.canvas.create_line(s.x - 30, s.y, s.x - 20, s.y, width=2, arrow=tk.LAST)
+        if self.transition_start:
+            self.canvas.create_oval(self.transition_start.x - 22, self.transition_start.y - 22,
+                                    self.transition_start.x + 22, self.transition_start.y + 22,
+                                    outline="red", dash=(3, 2))
+
+    def export(self):
+        result = {
+            "states": [(s.name, s.kind, s.initial) for s in self.states],
+            "transitions": [(t.src.name, t.dst.name, t.label) for t in self.transitions]
+        }
+        print(result)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = StateMachineDrawer(root)
+    root.mainloop()

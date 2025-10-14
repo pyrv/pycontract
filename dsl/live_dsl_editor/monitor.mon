@@ -1,0 +1,12 @@
+monitor Locking
+state Always:
+  kind AlwaysState
+  initial
+  transitions:
+    Acquire(thread, lock) -> Locked(thread, lock)
+
+state Locked(thread, lock):
+  kind HotState
+  transitions:
+    Acquire(_, lock) -> error("lock re-acquired")
+    Release(thread, lock) -> ok
