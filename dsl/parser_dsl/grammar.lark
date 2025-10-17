@@ -20,6 +20,7 @@ NAMEQ.2: /[A-Za-z_][A-Za-z_0-9]*\?/
 EVENT:    "event"
 EVENTS:   "events"
 MONITOR:  "monitor"
+INCLUDE:  "include"
 IGNORE:   "ignore"
 STATE:    "state"
 HOTSTATE: "hot"
@@ -33,9 +34,8 @@ OK:       "ok"
 ERROR:    "error"
 AND:      "and"
 OR:       "or"
-SEQ:      "seq"
 NOT:      "not"
-INCLUDE:  "include"
+SEQ:      "seq"
 IF:       "if"
 WHERE:    "where"
 EXISTS:   "exists"
@@ -108,9 +108,11 @@ valuepat: NAME | NAMEQ | NUMBER | STRING
 condition: IF expr
 veto: VETO eventpat
 
-statement: CALL func_call | ASSERT LPAREN expr RPAREN | submit_stmt | PYCODE
-submit_stmt: NAME BANG event
+statement: CALL func_call | ASSERT LPAREN expr RPAREN | NAME BANG event | PYCODE
 event: NAME arguments?
+arguments: LPAREN arg_list? RPAREN
+arg_list: arg (COMMA arg)*
+arg: NAME EQUAL expr | expr
 
 targetstate_list: targetstate (COMMA targetstate)*
 targetstate: eventsequence atomictargetstate? | atomictargetstate
@@ -136,11 +138,11 @@ expr: or_expr
 or_expr: or_expr OR and_expr | and_expr
 and_expr: and_expr AND not_expr | not_expr
 not_expr: NOT not_expr | compare
-compare: sum ((LT|LE|GT|GE|EQUAL|NOTEQUAL) sum)?
-sum: sum PLUS product | sum MINUS product | product
-product: product TIMES unary | product DIV   unary | unary
-unary: MINUS unary | primary
-primary: NUMBER
+compare: sum_expr ((LT|LE|GT|GE|EQUAL|NOTEQUAL) sum_expr)?
+sum_expr: sum_expr PLUS product_expr | sum_expr MINUS product_expr | product_expr
+product_expr: product_expr TIMES unary_expr | product_expr DIV unary_expr | unary_expr
+unary_expr: MINUS unary_expr | primary_expr
+primary_expr: NUMBER
         | STRING
         | NAME
         | func_call
@@ -148,6 +150,3 @@ primary: NUMBER
         | EXISTS NAME argumentpats? (WHERE expr)?
         | LPAREN expr RPAREN
 func_call: NAME arguments
-arguments: LPAREN arg_list? RPAREN
-arg_list: arg (COMMA arg)*
-arg: NAME EQUAL expr | expr

@@ -56,11 +56,11 @@ keywords = {
 }
 
 if __name__ == "__main__":
-    spec_file = "monitor.mon"
-    spec_file = "demo1.mon"
-    spec_file = "demo2.mon"
+    # spec_file = "monitor.mon"
+    # spec_file = "demo1.mon"
+    # spec_file = "demo2.mon"
 
-    with open("grammar.lark") as gfile:
+    with open("grammar2.lark") as gfile:
         grammar = gfile.read()
 
     with open(spec_file) as f:

@@ -1,0 +1,214 @@
+// ---------- Imports & basics ----------
+%import common.CNAME          -> NAME
+%import common.SIGNED_NUMBER  -> NUMBER
+%import common.ESCAPED_STRING -> STRING
+%import common.WS_INLINE
+%import common.NEWLINE
+
+%ignore WS_INLINE
+%ignore NEWLINE
+COMMENT: /#[^\n]*/
+%ignore COMMENT
+MLCOMMENT.2: /'''[\s\S]*?'''|\"\"\"[\s\S]*?\"\"\"/
+%ignore MLCOMMENT
+
+// ---------- Names ----------
+NAMEQ.2: /[A-Za-z_][A-Za-z_0-9]*\?/
+
+// ---------- Keywords ----------
+EVENT:    "event"
+EVENTS:   "events"
+MONITOR:  "monitor"
+INCLUDE:  "include"
+IGNORE:   "ignore"
+STATE:    "state"
+HOTSTATE: "hot"
+NEXTSTATE: "next"
+HOTNEXTSTATE: "notnext"
+ALWAYSSTATE: "always"
+INITIAL:  "initial"
+CASE:     "case"
+VETO:     "veto"
+OK:       "ok"
+ERROR:    "error"
+AND:      "and"
+OR:       "or"
+NOT:      "not"
+SEQ:      "seq"
+IF:       "if"
+WHERE:    "where"
+EXISTS:   "exists"
+CALL:     "call"
+ASSERT:   "assert"
+OKIF:     "okif"
+
+// ---------- Punctuation ----------
+LBRACE: "{"
+RBRACE: "}"
+LPAREN: "("
+RPAREN: ")"
+LBRACKET: "["
+RBRACKET: "]"
+COMMA:  ","
+COLON:  ":"
+LE: "<="
+GE: ">="
+LT: "<"
+GT: ">"
+PLUS: "+"
+MINUS: "-"
+TIMES: "*"
+DIV: "/"
+EQUAL: "="
+NOTEQUAL: "!="
+ARROW:  "->"
+DARROW: "=>"
+QMARK: "?"
+BANG:  "!"
+UNDERSCORE: "_"
+
+// ---------- Python Code -----------
+PYCODE.2: /\{\:[\s\S]*?\:\}/
+
+// ---------- Types ----------
+TYPE_INT:   "int"
+TYPE_FLOAT: "float"
+TYPE_STR:   "str"
+
+// ---------- Grammar (AST-labeled) ----------
+
+start: eventdef* monitor*                     -> start
+
+// Events
+eventdef: oneeventdef                         -> eventdef_one
+         | multieventdef                      -> eventdef_multi
+
+oneeventdef: EVENT eventsignature             -> one_eventdef
+eventsignature: NAME parameters?              -> event_sig
+
+multieventdef: EVENTS NAME LBRACE eventsignature+ RBRACE -> multi_eventdef
+
+parameters: LPAREN param_list RPAREN          -> params
+param_list: param (COMMA param)*              -> param_list
+param: NAME COLON type                        -> param
+type: TYPE_INT                                -> type_int
+    | TYPE_FLOAT                              -> type_float
+    | TYPE_STR                                -> type_str
+
+// Monitor
+monitor: IGNORE? MONITOR NAME typeparam? LBRACE include? PYCODE? transition* state* RBRACE -> monitor
+
+typeparam: LBRACKET NAME RBRACKET             -> typeparam
+include: INCLUDE name_list                    -> include
+name_list: NAME (COMMA NAME)*                 -> name_list
+
+// Transitions
+transition: case                              -> transition_case
+          | veto                              -> transition_veto
+
+case: CASE eventpat COLON? statement* targetstate_list? -> case
+veto: VETO eventpat                           -> veto
+
+// Event patterns
+eventpat: NAME argumentpats? condition?       -> event_pat
+argumentpats: LPAREN argpat_list? RPAREN      -> arg_pats
+argpat_list: argpat (COMMA argpat)*           -> argpat_list
+argpat: NAME EQUAL valuepat                   -> argpat_named
+     | valuepat                               -> argpat_pos
+     | UNDERSCORE                             -> argpat_wild
+
+valuepat: NAME                                -> vpat_name
+        | NAMEQ                               -> vpat_nameq
+        | NUMBER                              -> vpat_num
+        | STRING                              -> vpat_str
+
+condition: IF expr                            -> cond_if
+
+// Statements
+statement: CALL func_call                     -> stmt_call
+         | ASSERT LPAREN expr RPAREN          -> stmt_assert
+         | NAME BANG event                    -> stmt_emit
+         | PYCODE                             -> stmt_py
+
+event: NAME arguments?                        -> event
+arguments: LPAREN arg_list? RPAREN            -> args
+arg_list: arg (COMMA arg)*                    -> arg_list
+arg: NAME EQUAL expr                          -> arg_named
+   | expr                                     -> arg_pos
+
+// Targets / states
+targetstate_list: targetstate (COMMA targetstate)* -> target_list
+targetstate: eventsequence atomictargetstate?  -> target_seq_then
+           | atomictargetstate                 -> target_atomic
+
+eventsequence: LBRACKET eventspec+ RBRACKET   -> event_seq
+eventspec: (QMARK | BANG)? eventpat           -> event_spec
+
+atomictargetstate: stateinstance              -> tgt_stateinstance
+                 | ok                         -> tgt_ok
+                 | error                      -> tgt_error
+                 | inlinedstate               -> tgt_inlined
+                 | compositestate             -> tgt_composite
+                 | compositenotstate          -> tgt_composite_not
+
+stateinstance: NAME arguments?                -> state_instance
+
+ok: OK message?                               -> ok_simple
+  | OKIF LPAREN expr RPAREN message?          -> ok_if
+
+error: ERROR message?                         -> error
+
+message: LPAREN STRING RPAREN                 -> message
+
+inlinedstate: statetype statebody             -> state_inlined
+compositestate: composer LBRACKET targetstate_list RBRACKET -> state_composite
+composer: AND                                 -> comp_and
+        | OR                                  -> comp_or
+        | SEQ                                 -> comp_seq
+
+compositenotstate: NOT targetstate            -> state_not
+
+// State definitions
+state: INITIAL? statetype NAME parameters? statebody? -> state_def
+statetype: STATE                              -> st_state
+         | HOTSTATE                           -> st_hot
+         | NEXTSTATE                          -> st_next
+         | HOTNEXTSTATE                       -> st_hotnext
+         | ALWAYSSTATE                        -> st_always
+
+statebody: LBRACE transition* RBRACE          -> state_body
+
+// Expressions (labeled precedence climbing)
+expr: or_expr                                 -> expr
+
+?or_expr: or_expr OR and_expr                 -> or
+        | and_expr
+
+?and_expr: and_expr AND not_expr              -> and
+         | not_expr
+
+?not_expr: NOT not_expr                       -> not
+         | compare
+
+?compare: sum_expr ((LT|LE|GT|GE|EQUAL|NOTEQUAL) sum_expr)? -> compare
+
+?sum_expr: sum_expr PLUS product_expr         -> add
+         | sum_expr MINUS product_expr        -> sub
+         | product_expr
+
+?product_expr: product_expr TIMES unary_expr  -> mul
+             | product_expr DIV unary_expr    -> div
+             | unary_expr
+
+?unary_expr: MINUS unary_expr                 -> neg
+           | primary_expr
+
+?primary_expr: NUMBER                         -> num
+             | STRING                         -> str
+             | NAME                           -> var
+             | func_call                      -> call
+             | PYCODE                         -> pycode
+             | EXISTS NAME argumentpats? (WHERE expr)? -> exists
+             | LPAREN expr RPAREN             -> group
+
+func_call: NAME arguments                     -> func_call
