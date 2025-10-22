@@ -1,0 +1,62 @@
+
+"""
+Command execution, inspired by LogScope.
+"""
+
+events Exec {
+  Command(name: str, time: int, number: int)
+  Dispatch(name: str, time: int, number: int)
+  DispatchFailure(name: str, time: int, number: int)
+  ExecutionFailure(name: str, time: int, number: int)
+  Complete(name: str, time: int, number: int)
+}
+
+"""
+Requirement:
+
+After a Command is issued with a name and a number,
+no DispatchFailure should occur with that name and number,
+until a Dispatch occurs with that name and number,
+after which no ExecutionFailure should occur with that name and number,
+until a Complete occurs with that name and number,
+after which no other Complete should occur with that name and number.
+"""
+
+monitor CorrectExecutionPyContract {
+  case Command(name = n?, number = x?): Commanded(n,x)
+
+  hot Commanded(name: str, number: int) {
+   veto DispatchFailure(name=name, number=number)
+   case Dispatch(name=name, number=number): Dispatched(name, number)
+  }
+
+  hot Dispatched(name: str, number: str) {
+    veto ExecutionFailure(name=name, number=number)
+    case Complete(name=name, number=number): Completed(name, number)
+  }
+
+  state Completed(name: str, number: int) {
+    veto Complete(name=name, number=number)
+  }
+}
+
+monitor CorrectExecutionDaut {
+  case Command(name = n?, number = x?): hot {
+    veto DispatchFailure(name=n, number=x)
+    case Dispatch(name=n, number=n): hot {
+      veto ExecutionFailure(name=n, number=x)
+      case Complete(name=n, number=n): state {
+        veto Complete(name=n, number=n)
+      }
+    }
+  }
+}
+
+monitor CorrectExecutionLogScope {
+  case Command(name = n?, number = x?): [
+    !DispatchFailure(name=n, number=x)
+     Dispatch(name=n, number=n)
+    !ExecutionFailure(name=n, number=x)
+     Complete(name=n, number=n)
+    !Complete(name=n, number=n)]
+}

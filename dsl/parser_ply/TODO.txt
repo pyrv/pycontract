@@ -1,10 +1,9 @@
 
 TODO for Pyco
 
-[ ] Parameters to monitors, are other monitors parameters?, do we make instances of monitors
-
 --- WAIT ---
 
+[ ] Parameters to monitors, are other monitors parameters?, do we make instances of monitors
 [ ] Reacting to errors .. callbacks?
 [ ] Real time
 [ ] invariants in monitor?

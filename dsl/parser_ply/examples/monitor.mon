@@ -1,0 +1,137 @@
+
+event Row(x:int, y: float, z: str)
+
+events File {
+  Open(file: str)
+  Close(file: str)
+}
+
+monitor Locking[Row] {
+  include M1, M2, M3
+
+  case E(time=t, sign="STOP") : okif (f(1,2))("upps")
+  case F : error
+  case G(time=t,y) : S1(time=t)
+  case H: S2
+  case I(): S1(x=19), S2, S4
+
+  state S1(time: int)
+
+  state S2
+
+  """
+  This is a comment
+  over several lines.
+  """
+
+  # This is a single line comment.
+
+  hot S3 {
+    case A(f=x) : error("that's bad")
+  }
+
+  always S4 {
+    case B : hot {
+      case C(x=1) : hot {
+        case D(x=x)
+      }
+      case C(x=1) : hot {
+        case D(x=x)
+      }
+    }
+
+    case C: or [
+      hot {
+        case B
+        veto F(x=10,y=g)
+      },
+      S3,
+      not hot {
+        case A: ok("all done")
+      }
+    ]
+  }
+
+   initial always Start {
+    case A : hot {
+      case B : hot {
+        case C : hot {
+          case E
+          veto F
+        }
+        veto D
+      }
+    }
+  }
+}
+
+monitor LogScopeLike {
+  case A :
+    [
+      E1
+      E2
+    ]
+    hot {
+      case E5 : [A B C] S1
+      case E6 : [D E F]
+    }
+}
+
+ignore monitor P1 {
+  case COMMAND(Type="FSW", Stem=x, Number=y):
+    [EVR(Success=x, Number=y)]
+}
+
+monitor P2 {
+  case COMMAND(Type="FSW", Stem=x, Number=y):
+    [!EVR(Failure=x, Number=y)]
+}
+
+monitor P3 {
+  case COMMAND(Type="FSW", Stem=x, Number=y):
+    [
+      !EVR(DispatchFailure=x, Number=y)
+       EVR(Dispatch=x, Number=y) if {: x > y :}
+      !EVR(Failure=x, Number=y)
+       EVR(Success=x, Number=y)
+      !EVR(Success=x, Number=y)
+    ]
+}
+
+monitor P4 {
+  case COMMAND(Type= "FSW", Stem=x, Number=y):
+    [EVR(Dispatch=x, Number=y)],
+    [EVR(Success=x, Number=y) !EVR(Success=x, Number=y)],
+    [!EVR(DispatchFailure=x,Number=y) !EVR(Failure=x, Number=y)]
+}
+
+monitor M1 {
+  {:
+  self.x: int = 0
+  self.y: int = 0
+  :}
+  case BOOTSTART: state {
+    case BOOTEND:
+      {: self.x += 1
+         self.y -= 1
+      :}
+      M2!BOOT
+      hot {
+        case BOOTIE:
+          call f(1,2,3)
+          assert(f(1,2))
+          error
+      }
+  }
+}
+
+monitor M2 {
+  case BOOT : [!BOOT]
+}
+
+monitor M3 {
+  case A if f(1,2+2) and {:x>y:} and (not b or {:p:}) and f(3)
+    hot {
+      case B if exists A(field=x) where {: x > 0 :}
+    }
+}

@@ -181,13 +181,13 @@ statebody: LBRACE transition* RBRACE          -> state_body
 // Expressions (labeled precedence climbing)
 expr: or_expr                                 -> expr
 
-?or_expr: or_expr OR and_expr                 -> or
+?or_expr: or_expr OR and_expr                 -> op_or
         | and_expr
 
-?and_expr: and_expr AND not_expr              -> and
+?and_expr: and_expr AND not_expr              -> op_and
          | not_expr
 
-?not_expr: NOT not_expr                       -> not
+?not_expr: NOT not_expr                       -> op_not
          | compare
 
 ?compare: sum_expr ((LT|LE|GT|GE|EQUAL|NOTEQUAL) sum_expr)? -> compare

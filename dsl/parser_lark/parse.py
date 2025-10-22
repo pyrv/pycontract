@@ -1,7 +1,23 @@
 # parse.py
-from lark import Lark
 
+from __future__ import annotations
 import re
+from dataclasses import asdict, is_dataclass
+from typing import Any
+from lark import Lark, Tree, Token
+from transform import ASTBuilder
+from codegen import CodegenPyContract
+from pprint import pprint
+
+GRAMMAR_PATH = "grammar.lark"
+START_RULE = "start"
+
+def parse_to_ast(text: str):
+    with open(GRAMMAR_PATH, "r", encoding="utf-8") as f:
+        grammar = f.read()
+    parser = Lark(grammar, parser="lalr", start=START_RULE, propagate_positions=True)
+    tree = parser.parse(text)
+    return ASTBuilder().transform(tree)
 
 def bold_names(text: str, names):
     print('---')
@@ -12,9 +28,6 @@ def bold_names(text: str, names):
     pat = r'\b(?:%s)\b' % '|'.join(re.escape(w) for w in words)
     print(re.sub(pat, lambda m: f'\033[1m{m.group(0)}\033[0m', text), end="")
     print('---')
-
-
-import re
 
 def color_keywords_blue(text: str, names, *, case_sensitive=False, bold=False):
     text = re.sub(r'#.*', '', text)  # drop comments to EOL
@@ -56,18 +69,18 @@ keywords = {
 }
 
 if __name__ == "__main__":
-    # spec_file = "monitor.mon"
-    # spec_file = "demo1.mon"
-    # spec_file = "demo2.mon"
+    spec_file = "examples/monitor.mon"
+    # spec_file = "examples/demo1.mon"
+    # spec_file = "examples/demo2.mon"
 
-    with open("grammar2.lark") as gfile:
+    with open("grammar.lark") as gfile:
         grammar = gfile.read()
 
     with open(spec_file) as f:
         source = f.read()
-        # print(repr(source))
 
-    parser = Lark(grammar, parser="lalr", lexer="contextual", start="start")
-    tree = parser.parse(source)
-    # print(tree.pretty())d
-    color_keywords_blue(source, keywords, bold=True)
+    ast = parse_to_ast(source)
+    pprint(ast)
+    #color_keywords_blue(source, keywords, bold=True)
+    #code = CodegenPyContract().translate(ast)
+    # print(code)
