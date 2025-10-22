@@ -83,43 +83,36 @@ def t_NUMBER(t):
     r'(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
     return t
 
-# Put this ABOVE t_STRING
 def t_comment_block(t):
     r'(\"\"\"(.|\n)*?\"\"\"|\'\'\'(.|\n)*?\'\'\')'
     # keep line numbers correct
     t.lexer.lineno += t.value.count('\n')
     pass
 
-# Strings – reusing Python/JSON-ish escaped strings
 def t_STRING(t):
     r'\"([^\\\n]|(\\.))*?\"'
     t.value = t.value  # keep the quotes per your AST design (Str.value: str)
     return t
 
-# NAME? (NAMEQ)
 def t_NAMEQ(t):
     r'[A-Za-z_][A-Za-z_0-9]*\?'
     return t
 
-# PYCODE: {: ... :}
 def t_PYCODE(t):
     r'\{\:[\s\S]*?\:\}'
     t.lexer.lineno += t.value.count('\n')   # keep error lines accurate
     t.value = t.value
     return t
 
-# Identifiers and reserved words
 def t_NAME(t):
     r'[A-Za-z_][A-Za-z_0-9]*'
     t.type = reserved.get(t.value, 'NAME')
     return t
 
-# Comments
 def t_comment_line(t):
     r'\#[^\n]*'
     pass
 
-# Whitespace & tracking
 t_ignore = ' \t\r'
 def t_newline(t):
     r'\n+'
@@ -166,7 +159,6 @@ precedence = (
 # Grammar
 # -----------------------------
 
-# start: eventdef* monitor*
 def p_program(p):
     """program : eventdefs monitors"""
     p[0] = Program(events=as_list(p[1]), monitors=as_list(p[2]))
@@ -187,8 +179,6 @@ def p_monitors_empty(p):
     """monitors : """
     p[0] = []
 
-# Events
-# eventdef: oneeventdef | multieventdef
 def p_eventdef_one(p):
     """eventdef : oneeventdef"""
     p[0] = p[1]
@@ -197,12 +187,10 @@ def p_eventdef_multi(p):
     """eventdef : multieventdef"""
     p[0] = p[1]
 
-# oneeventdef: EVENT eventsignature
 def p_oneeventdef(p):
     """oneeventdef : EVENT eventsignature"""
     p[0] = OneEventDef(sig=p[2])
 
-# eventsignature: NAME parameters?
 def p_eventsignature(p):
     """eventsignature : NAME parameters_opt"""
     p[0] = EventSig(name=p[1], params=p[2])
@@ -210,9 +198,8 @@ def p_eventsignature(p):
 def p_parameters_opt(p):
     """parameters_opt : parameters
                       | """
-    p[0] = p[1] if len(p) == 2 else None
+    p[0] = p[1] if len(p) == 2 else []
 
-# multieventdef: EVENTS NAME '{' eventsignature+ '}'
 def p_multieventdef(p):
     """multieventdef : EVENTS NAME '{' eventsignatures '}'"""
     p[0] = MultiEventDef(group=p[2], sigs=p[4])
@@ -225,7 +212,6 @@ def p_eventsignatures_one(p):
     """eventsignatures : eventsignature"""
     p[0] = [p[1]]
 
-# parameters: '(' param_list ')'
 def p_parameters(p):
     """parameters : '(' param_list ')'"""
     p[0] = p[2]
@@ -246,11 +232,10 @@ def p_type(p):
     """type : TYPE_INT
             | TYPE_FLOAT
             | TYPE_STR"""
-    # values are the keyword strings 'int'|'float'|'str'
-    p[0] = p[1]
+    p[0] = {'int':  TypeKind.INT,
+            'float':TypeKind.FLOAT,
+            'str':  TypeKind.STR}[p[1]]
 
-# Monitor
-# monitor: IGNORE? MONITOR NAME typeparam? '{' include? PYCODE? transition* state* '}'
 def p_monitor(p):
     """monitor : IGNORE_opt MONITOR NAME typeparam_opt '{' include_opt PYCODE_opt transitions states '}'"""
     ignore = p[1]
@@ -282,7 +267,7 @@ def p_typeparam_opt(p):
 def p_include_opt(p):
     """include_opt : INCLUDE name_list
                    | """
-    p[0] = p[2] if len(p) == 3 else None
+    p[0] = p[2] if len(p) == 3 else []
 
 def p_name_list_many(p):
     """name_list : name_list ',' NAME"""
@@ -313,7 +298,6 @@ def p_states_empty(p):
     """states : """
     p[0] = []
 
-# Transitions
 def p_transition_case(p):
     """transition : case"""
     p[0] = p[1]
@@ -322,9 +306,8 @@ def p_transition_veto(p):
     """transition : veto"""
     p[0] = p[1]
 
-# case: CASE eventpat COLON? statement* targetstate_list?
 def p_case(p):
-    """case : CASE eventpat case_colon_opt statements targetstate_list_opt"""
+    """case : CASE eventpat case_colon_opt statements targetstates"""
     p[0] = Case(pat=p[2], statements=p[4], targets=p[5])
 
 def p_case_colon_opt(p):
@@ -336,8 +319,6 @@ def p_veto(p):
     """veto : VETO eventpat"""
     p[0] = Veto(pat=p[2])
 
-# Event patterns
-# eventpat: NAME argumentpats? condition?
 def p_eventpat(p):
     """eventpat : NAME argumentpats_opt condition_opt"""
     p[0] = EventPat(name=p[1], args=p[2], cond=p[3])
@@ -345,7 +326,7 @@ def p_eventpat(p):
 def p_argumentpats_opt(p):
     """argumentpats_opt : '(' argpat_list_opt ')'
                         | """
-    p[0] = p[2] if len(p) == 4 else None
+    p[0] = p[2] if len(p) == 4 else []
 
 def p_argpat_list_opt(p):
     """argpat_list_opt : argpat_list
@@ -374,30 +355,29 @@ def p_argpat_wild(p):
 
 def p_valuepat_name(p):
     """valuepat : NAME"""
-    p[0] = ValuePat(kind='name', value=p[1])
+    p[0] = ValuePatName(name=p[1])
 
 def p_valuepat_nameq(p):
     """valuepat : NAMEQ"""
-    p[0] = ValuePat(kind='nameq', value=p[1])
+    p[0] = ValuePatNameQ(name=p[1])
 
 def p_valuepat_num(p):
     """valuepat : NUMBER"""
-    p[0] = ValuePat(kind='num', value=p[1])
+    p[0] = ValuePatNum(value=p[1])
 
 def p_valuepat_negnum(p):
     """valuepat : MINUS NUMBER"""
-    p[0] = ValuePat(kind='num', value='-' + p[2])
+    p[0] = ValuePatNum(value='-' + p[2])
 
 def p_valuepat_str(p):
     """valuepat : STRING"""
-    p[0] = ValuePat(kind='str', value=p[1])
+    p[0] = ValuePatStr(value=p[1])
 
 def p_condition_opt(p):
     """condition_opt : IF expr
                      | """
     p[0] = p[2] if len(p) == 3 else None
 
-# Statements
 def p_statements_many(p):
     """statements : statements statement"""
     p[0] = as_list(p[1]) + [p[2]]
@@ -406,7 +386,6 @@ def p_statements_empty(p):
     """statements : """
     p[0] = []
 
-# statement: CALL func_call | ASSERT '(' expr ')' | NAME BANG event | PYCODE
 def p_statement_call(p):
     """statement : CALL func_call"""
     p[0] = StmtCall(call=p[2])
@@ -423,7 +402,6 @@ def p_statement_py(p):
     """statement : PYCODE"""
     p[0] = StmtPy(code=p[1])
 
-# event: NAME arguments?
 def p_event(p):
     """event : NAME arguments_opt"""
     p[0] = Event(name=p[1], args=p[2] or [])
@@ -454,21 +432,18 @@ def p_arg_pos(p):
     """arg : expr"""
     p[0] = ArgPos(expr=p[1])
 
-# Targets / states
-def p_targetstate_list_many(p):
-    """targetstate_list : targetstate_list ',' targetstate"""
-    p[0] = TargetList(items=as_list(p[1].items) + [p[3]])
+def p_targetstates_many(p):
+    """targetstates : targetstates ',' targetstate"""
+    p[0] = p[1] + [p[3]]
 
-def p_targetstate_list_one(p):
-    """targetstate_list : targetstate"""
-    p[0] = TargetList(items=[p[1]])
+def p_targetstates_one(p):
+    """targetstates : targetstate"""
+    p[0] = [p[1]]
 
-def p_targetstate_list_opt(p):
-    """targetstate_list_opt : targetstate_list
-                            | """
-    p[0] = p[1] if len(p) == 2 else None
+def p_targetstates_empty(p):
+    """targetstates :"""
+    p[0] = []
 
-# targetstate: eventsequence atomictargetstate?
 def p_targetstate_seq_then(p):
     """targetstate : eventsequence atomictargetstate_opt"""
     p[0] = TargetSeqThen(seq=p[1], then=p[2])
@@ -482,7 +457,6 @@ def p_targetstate_atomic(p):
     """targetstate : atomictargetstate"""
     p[0] = p[1]
 
-# eventsequence: '[' eventspec+ ']'
 def p_eventsequence(p):
     """eventsequence : '[' eventspecs ']'"""
     p[0] = EventSeq(specs=p[2])
@@ -495,7 +469,6 @@ def p_eventspecs_one(p):
     """eventspecs : eventspec"""
     p[0] = [p[1]]
 
-# eventspec: (QMARK | BANG)? eventpat
 def p_eventspec(p):
     """eventspec : eventspec_prefix_opt eventpat"""
     p[0] = EventSpec(prefix=p[1], pat=p[2])
@@ -504,9 +477,9 @@ def p_eventspec_prefix_opt(p):
     """eventspec_prefix_opt : QMARK
                             | BANG
                             | """
-    p[0] = p[1] if len(p) == 2 else None
+    p[0] = Prefix.QMARK if len(p)==2 and p[1]=='?' else (
+           Prefix.BANG  if len(p)==2 and p[1]=='!'else None)
 
-# atomictargetstate:
 def p_atomictarget_stateinstance(p):
     """atomictargetstate : stateinstance"""
     p[0] = TgtStateInstance(name=p[1][0], args=p[1][1])
@@ -540,35 +513,30 @@ def p_message_opt(p):
                    | """
     p[0] = p[2] if len(p) == 4 else None
 
-# stateinstance: NAME arguments?
 def p_stateinstance(p):
     """stateinstance : NAME arguments_opt"""
     p[0] = (p[1], p[2] or [])
 
-# inlinedstate: statetype statebody
 def p_inlinedstate(p):
     """inlinedstate : statetype statebody"""
     p[0] = TgtInlined(stype=p[1], body=p[2])
 
-# compositestate: composer '[' targetstate_list ']'
 def p_compositestate(p):
-    """compositestate : composer '[' targetstate_list ']'"""
+    """compositestate : composer '[' targetstates ']'"""
     p[0] = TgtComposite(kind=p[1], targets=p[3])
 
-# composer: AND | OR | SEQ
 def p_composer(p):
     """composer : AND
                 | OR
                 | SEQ"""
-    p[0] = p[1]
+    p[0] = {'and': CompositeKind.AND,
+            'or':  CompositeKind.OR,
+            'seq': CompositeKind.SEQ}[p[1]]
 
-# compositenotstate: NOT targetstate
 def p_compositenotstate(p):
     """compositenotstate : NOT targetstate"""
     p[0] = TgtNot(inner=p[2])
 
-# State definitions
-# state: INITIAL? statetype NAME parameters? statebody?
 def p_state(p):
     """state : INITIAL_opt statetype NAME parameters_opt statebody_opt"""
     p[0] = StateDef(
@@ -590,10 +558,8 @@ def p_statetype(p):
                  | NEXTSTATE
                  | HOTNEXTSTATE
                  | ALWAYSSTATE"""
-    # the literal keyword text is fine (e.g., 'state','hot',...)
     p[0] = p[1]
 
-# statebody: '{' transition* '}'
 def p_statebody(p):
     """statebody : '{' transitions '}'"""
     p[0] = StateBody(transitions=p[2])
@@ -602,10 +568,6 @@ def p_statebody_opt(p):
     """statebody_opt : statebody
                      | """
     p[0] = p[1] if len(p) == 2 else None
-
-# -----------------------------
-# Expressions
-# -----------------------------
 
 def p_expr_bin(p):
     """expr : expr PLUS expr
@@ -656,7 +618,7 @@ def p_expr_exists(p):
 def p_argumentpats_exists_opt(p):
     """argumentpats_exists_opt : '(' argpat_list_opt ')'
                                | """
-    p[0] = p[2] if len(p) == 4 else None
+    p[0] = p[2] if len(p) == 4 else []
 
 def p_where_opt(p):
     """where_opt : WHERE expr
@@ -691,6 +653,7 @@ def p_func_call(p):
 # -----------------------------
 # Error handler
 # -----------------------------
+
 def p_error(p):
     if p is None:
         raise SyntaxError("Unexpected end of input")
@@ -730,28 +693,6 @@ if __name__ == "__main__":
     #SPEC = "demo1.mon"
     #SPEC = "demo2.mon"
     SAMPLE_PATH = HERE / "examples" / SPEC
-
-    DEMO_TEXT = r'''
-events IO {
-  Log(msg: str)
-  Ping
-  Pong(x: int)
-}
-
-monitor MyMon[T] {
-  include A, B, C
-  {: # python goes here :}
-
-  case Log(msg="hello") if 1 + 2*3 > 6:
-    call foo(1, x=2)
-    out!Ping()
-    [ ?Log(msg="hello") !Pong() ] hot { }
-
-  veto Ping()
-  
-  initial state S(x: int) { }
-}
-'''
 
     def to_dict(obj: Any):
         if dataclasses.is_dataclass(obj):
@@ -800,7 +741,7 @@ monitor MyMon[T] {
         if USE_STDIN and not sys.stdin.isatty():
             return sys.stdin.read()
         # 4) Fallback to demo (no hang in IDE)
-        return DEMO_TEXT
+        assert False
 
     try:
         text = load_text()

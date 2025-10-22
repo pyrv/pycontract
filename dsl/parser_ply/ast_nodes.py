@@ -3,8 +3,25 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Union
+from enum import Enum
 
-# ---------- Expressions ----------
+#----------- Enumerated types -----
+
+class Prefix(Enum):
+    QMARK = "?"
+    BANG  = "!"
+
+class CompositeKind(Enum):
+    AND = "and"
+    OR  = "or"
+    SEQ = "seq"
+
+class TypeKind(Enum):
+    INT   = "int"
+    FLOAT = "float"
+    STR   = "str"
+
+#----------- Expressions ----------
 
 class Expr: ...
 
@@ -34,18 +51,12 @@ class UnOp(Expr):
     expr: Expr
 
 @dataclass
-class Compare(Expr):
-    left: Expr
-    op: Optional[str]     # None means just `left`
-    right: Optional[Expr]
-
-@dataclass
 class Exists(Expr):
     var: str
-    argpats: Optional[List['ArgPat']]
+    argpats: List[ArgPat]
     where: Optional[Expr]
 
-# ---------- Args / Patterns ----------
+#---------- Args / Patterns ----------
 
 class Arg: ...
 
@@ -66,12 +77,25 @@ class ArgPatPos(ArgPat): value: ValuePat
 @dataclass
 class ArgPatWild(ArgPat): pass
 
+class ValuePat: ...
+
 @dataclass
-class ValuePat:
-    kind: str   # 'name'|'nameq'|'num'|'str'
+class ValuePatName:
+    name: str
+
+@dataclass
+class ValuePatNameQ:
+    name: str
+
+@dataclass
+class ValuePatNum:
     value: str
 
-# ---------- Events, statements ----------
+@dataclass
+class ValuePatStr:
+    value: str
+
+#---------- Events, statements ----------
 
 @dataclass
 class Event:
@@ -92,11 +116,11 @@ class StmtEmit(Stmt): channel: str; event: Event
 @dataclass
 class StmtPy(Stmt): code: str
 
-# ---------- Targets / sequences ----------
+#---------- Targets / sequences ----------
 
 @dataclass
 class EventSpec:
-    prefix: Optional[str]     # '?' or '!' or None
+    prefix: Optional[Prefix]
     pat: EventPat
 
 @dataclass
@@ -123,7 +147,9 @@ class TgtError(AtomicTarget): message: Optional[str]
 class TgtInlined(AtomicTarget): stype: str; body: StateBody
 
 @dataclass
-class TgtComposite(AtomicTarget): kind: str; targets: TargetList   # 'and'|'or'|'seq'
+class TgtComposite(AtomicTarget):
+    kind: CompositeKind
+    targets: List[Target]
 
 @dataclass
 class TgtNot(AtomicTarget): inner: Target
@@ -133,16 +159,12 @@ class TargetSeqThen(Target):
     seq: EventSeq
     then: Optional[AtomicTarget]
 
-@dataclass
-class TargetList:
-    items: List[Target]
-
-# ---------- Event patterns / transitions ----------
+#---------- Event patterns / transitions ----------
 
 @dataclass
 class EventPat:
     name: str
-    args: Optional[List[ArgPat]]
+    args: List[ArgPat]
     cond: Optional[Expr]
 
 class Transition: ...
@@ -151,13 +173,13 @@ class Transition: ...
 class Case(Transition):
     pat: EventPat
     statements: List[Stmt]
-    targets: Optional[TargetList]
+    targets: List[Target]
 
 @dataclass
 class Veto(Transition):
     pat: EventPat
 
-# ---------- States ----------
+#---------- States ----------
 
 @dataclass
 class StateBody:
@@ -166,24 +188,24 @@ class StateBody:
 @dataclass
 class Param:
     name: str
-    typ: str  # 'int'|'float'|'str'
+    typ: TypeKind
 
 @dataclass
 class StateDef:
     initial: bool
-    stype: str   # 'state'|'hot'|'next'|'notnext'|'always'
+    stype: str
     name: str
-    params: Optional[List[Param]]
+    params: List[Param]
     body: Optional[StateBody]
 
-# ---------- Events section ----------
+#---------- Events section ----------
 
 class EventDef: ...
 
 @dataclass
 class EventSig:
     name: str
-    params: Optional[List[Param]]
+    params: List[Param]
 
 @dataclass
 class OneEventDef(EventDef): sig: EventSig
@@ -191,14 +213,14 @@ class OneEventDef(EventDef): sig: EventSig
 @dataclass
 class MultiEventDef(EventDef): group: str; sigs: List[EventSig]
 
-# ---------- Monitor / Program ----------
+#---------- Monitor / Program ----------
 
 @dataclass
 class Monitor:
     ignore: bool
     name: str
     typeparam: Optional[str]
-    include: Optional[List[str]]
+    include: List[str]
     pycode: Optional[str]
     transitions: List[Transition]
     states: List[StateDef]
