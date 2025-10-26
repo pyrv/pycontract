@@ -1,0 +1,33 @@
+
+from parser_ply import parse
+from desugar_seq_to_inline import DesugarSeqToInline
+from desugar_inline_to_explicit import DesugarInlineToExplicit
+from pyco_to_pycontract import PyContractTranslator
+
+text = r'''
+events Exec {
+  Command(name: str, time: int, number: int)
+  Dispatch(name: str, time: int, number: int)
+  DispatchFailure(name: str, time: int, number: int)
+  ExecutionFailure(name: str, time: int, number: int)
+  Complete(name: str, time: int, number: int)
+}
+
+monitor M3 {
+  case Command(name = n?, number = x?): [
+    ?DispatchFailure(name=n, number=x)
+    !DispatchFailure(name=n, number=x)
+     Dispatch(name=n, number=n)
+    !ExecutionFailure(name=n, number=x)
+     Complete(name=n, number=n)
+    !Complete(name=n, number=n)
+  ]
+}
+'''
+
+if __name__ == "__main__":
+    prog = parse(text)
+    prog = DesugarSeqToInline().transform_program(prog)
+    prog = DesugarInlineToExplicit(prog).transform_program(prog)
+    code = PyContractTranslator().translate_program(prog)
+    print(code)

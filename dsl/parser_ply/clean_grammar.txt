@@ -1,0 +1,138 @@
+    program : eventdefs monitors
+    eventdefs : eventdefs eventdef
+    eventdefs : 
+    monitors : monitors monitor
+    monitors : 
+    eventdef : oneeventdef
+    eventdef : multieventdef
+    oneeventdef : EVENT eventsignature
+    eventsignature : NAME parameters_opt
+    parameters_opt : parameters
+                      | 
+    multieventdef : EVENTS NAME '{' eventsignatures '}'
+    eventsignatures : eventsignatures eventsignature
+    eventsignatures : eventsignature
+    parameters : '(' param_list ')'
+    param_list : param_list ',' param
+    param_list : param
+    param : NAME ':' type
+    type : TYPE_INT
+            | TYPE_FLOAT
+            | TYPE_STR
+    monitor : IGNORE_opt MONITOR NAME typeparam_opt '{' include_opt PYCODE_opt transitions states '}'
+    IGNORE_opt : IGNORE
+                  | 
+    typeparam_opt : '[' NAME ']'
+                     | 
+    include_opt : INCLUDE name_list
+                   | 
+    name_list : name_list ',' NAME
+    name_list : NAME
+    PYCODE_opt : PYCODE
+                  | 
+    transitions : transitions transition
+    transitions : 
+    states : states state
+    states : 
+    transition : case
+    transition : veto
+    case : CASE eventpat case_colon_opt statements targetstates
+    case_colon_opt : ':'
+                      | 
+    veto : VETO eventpat
+    eventpat : NAME argumentpats_opt condition_opt
+    argumentpats_opt : '(' argpat_list_opt ')'
+    argpat_list_opt : argpat_list
+    argpat_list : argpat_list ',' argpat
+    argpat_list : argpat
+    argpat : NAME EQUAL valuepat
+    argpat : valuepat
+    argpat : UNDERSCORE
+    valuepat : NAME
+    valuepat : NAMEQ
+    valuepat : NUMBER
+    valuepat : MINUS NUMBER
+    valuepat : STRING
+    condition_opt : IF expr
+                     | 
+    statements : statements statement
+    statements : 
+    statement : CALL func_call
+    statement : ASSERT '(' expr ')'
+    statement : NAME BANG event
+    statement : PYCODE
+    event : NAME arguments_opt
+    arguments_opt : '(' arg_list_opt ')'
+                     | 
+    arg_list_opt : arg_list
+                    | 
+    arg_list : arg_list ',' arg
+    arg_list : arg
+    arg : NAME EQUAL expr
+    arg : expr
+    targetstates : targetstates ',' targetstate
+    targetstates : targetstate
+    targetstates :
+    targetstate : eventsequence atomictargetstate_opt
+    atomictargetstate_opt : atomictargetstate
+    targetstate : atomictargetstate
+    eventsequence : '[' eventspecs ']'
+    eventspecs : eventspecs eventspec
+    eventspecs : eventspec
+    eventspec : eventspec_prefix_opt eventpat
+    eventspec_prefix_opt : QMARK
+                            | BANG
+                            | 
+    atomictargetstate : stateinstance
+    atomictargetstate : OK message_opt
+    atomictargetstate : OKIF '(' expr ')' message_opt
+    atomictargetstate : ERROR message_opt
+    atomictargetstate : inlinedstate
+    atomictargetstate : compositestate
+    atomictargetstate : compositenotstate
+    message_opt : '(' STRING ')'
+                   | 
+    stateinstance : NAME arguments_opt
+    inlinedstate : statetype statebody
+    compositestate : composer '[' targetstates ']'
+    composer : AND
+                | OR
+                | SEQ
+    compositenotstate : NOT targetstate
+    state : INITIAL_opt statetype NAME parameters_opt statebody_opt
+    INITIAL_opt : INITIAL
+                   | 
+    statetype : STATE
+                 | HOTSTATE
+                 | NEXTSTATE
+                 | HOTNEXTSTATE
+                 | ALWAYSSTATE
+    statebody : '{' transitions '}'
+    statebody_opt : statebody
+                     | 
+    expr : expr PLUS expr
+            | expr MINUS expr
+            | expr TIMES expr
+            | expr DIV expr
+            | expr LT expr
+            | expr LE expr
+            | expr GT expr
+            | expr GE expr
+            | expr EQUAL expr
+            | expr NOTEQUAL expr
+            | expr AND expr
+            | expr OR expr
+    expr : NOT expr
+    expr : MINUS expr %prec UMINUS
+    expr : '(' expr ')'
+    expr : EXISTS NAME argumentpats_exists_opt where_opt
+    argumentpats_exists_opt : '(' argpat_list_opt ')'
+                               | 
+    where_opt : WHERE expr
+                 | 
+    expr : func_call
+    expr : NUMBER
+    expr : STRING
+    expr : NAME
+    expr : PYCODE
+    func_call : NAME '(' arg_list_opt ')'

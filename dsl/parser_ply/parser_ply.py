@@ -24,7 +24,7 @@ reserved = {
     'state': 'STATE',
     'hot': 'HOTSTATE',
     'next': 'NEXTSTATE',
-    'notnext': 'HOTNEXTSTATE',
+    'hotnext': 'HOTNEXTSTATE',
     'always': 'ALWAYSSTATE',
     'initial': 'INITIAL',
     'case': 'CASE',
@@ -359,7 +359,7 @@ def p_valuepat_name(p):
 
 def p_valuepat_nameq(p):
     """valuepat : NAMEQ"""
-    p[0] = ValuePatNameQ(name=p[1])
+    p[0] = ValuePatNameQ(name=p[1][:-1])
 
 def p_valuepat_num(p):
     """valuepat : NUMBER"""

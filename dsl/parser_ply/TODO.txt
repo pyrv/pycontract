@@ -1,7 +1,23 @@
 
 TODO for Pyco
 
+[>] Wellformedness check
+
+[ ] Testing
+
+[ ] Visualization, perhaps graphical input
+[ ] Command line version
+[ ] CSV file processing, rows
+
 --- WAIT ---
+
+CONSTRUCTS IN GRAMMAR KNOWN TO NOT BE HANDLED:
+
+[ ] include
+[ ] Python code in monitor
+[ ] Statements
+
+OTHER THINGS:
 
 [ ] Parameters to monitors, are other monitors parameters?, do we make instances of monitors
 [ ] Reacting to errors .. callbacks?
@@ -12,19 +28,30 @@ TODO for Pyco
 [ ] Other ways of providing extra output, labels
 [ ] upto/accepton/rejecton
 [ ] initializing a state with arguments
+[ ] Annotate shorter versions, Perhaps with f-strings ...?
+    monitor CorrectExecutionDaut {
+      case Command(name = n?, number = x?): hot DoDispatch {
+        veto DispatchFailure(name=n, number=x)
+        case Dispatch(name=n, number=n): hot DoComplete{
+          veto ExecutionFailure(name=n, number=x)
+          case Complete(name=n, number=n): state DontComplete{
+            veto Complete(name=n, number=n)
+          }
+        }
+      }
+    }
 
---- DONE ---
-
-[x] comments
-[x] ignore
-[x] string arguments to ok and error
-[x] Expression language - <code>, and, or, not, (...), exists
-[x] exists
-[x] function calls in statements
-[x] assertions
-[x] positional arguments and underscore for states
-[x] Distinction between event pattern and submitted event.
-[x] Definition of events, Indication of event type?
-[x] Arithmetic and relational expressions
+    monitor CorrectExecutionLogScope {
+      case Command(name = n?, number = x?): [
+        --- DoDispatch --------------------
+        !DispatchFailure(name=n, number=x)
+         Dispatch(name=n, number=n)
+        --- DoComplete --------------------
+        !ExecutionFailure(name=n, number=x)
+         Complete(name=n, number=n)
+        --- DontComplete ------------------
+        !Complete(name=n, number=n)]
+    }
+[ ] State machines written as loosely coupled requirements
 
 --- END ---
