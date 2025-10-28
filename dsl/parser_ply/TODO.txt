@@ -55,3 +55,29 @@ OTHER THINGS:
 [ ] State machines written as loosely coupled requirements
 
 --- END ---
+
+=====================
+WELLFORMEDNESS CHECK:
+=====================
+
+[x] No duplicate event names (in grouped or ungrouped form)
+[x] No duplicate argument names
+[x] Monitor names are unique
+[x] each referenced event name (in patterns, vetoes, sequences, etc.) exists
+[x] Variables used in patterns are properly bound (e.g., n used only if n? appeared earlier in the scope)
+[x] Named argument matches a declared event field
+[x] Positional args match the event arity
+[x] initial states must have no parameters
+[x] State names unique within a monitor
+[x] References to states (via TgtStateInstance) exist
+[x] No undefined variables in name= expressions (unless bound by ?)
+
+[ ] include refers to exisiting monitors
+[ ] monitor parameters different
+[ ] type param matches events in transitions
+[ ] target states should exist and have the right parameter names, check types also
+[ ] match types should be correct
+[ ] if conditions, states should exist variables should exist and with correct types
+[ ] vstatements: assert expressions wellformed, NAME! should exist, event well formed
+[ ] event sequences: check events
+[ ] expressions
