@@ -80,10 +80,10 @@ WELLFORMEDNESS CHECK:
 [x] target states should use the right parameter names
 [x] no mixing named and positional arguments
 [x] exists expressions
-[>] type checking, ensure that variables bound by n? and reused later match the declared types of event fields.
 
 CAN WAIT:
 
+[ ] type checking, ensure that variables bound by n? and reused later match the declared types of event fields.
 [ ] refine the reachability analysis to follow transitive reachability (like a graph traversal)
 [ ] include refers to existing monitors
 [ ] monitor parameters different
