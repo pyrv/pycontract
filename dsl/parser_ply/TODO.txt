@@ -1,26 +1,25 @@
 
 TODO for Pyco
 
-[ ] One cannot introduce a state after an event sequence.
-[ ] If a state has no transitions it ends up with: def transition(self, event): match event:
-[ ] __epsilon when a state occurs after an event sequence
+--- TODO ---
 
---- ISSUES ---
-
-[>] Wellformedness check
 [ ] Command line version, CSV file processing, rows
 [ ] Testing
 [ ] Documentation
 
---- WAIT ---
+--- BUGS ---
 
-CONSTRUCTS IN GRAMMAR KNOWN TO NOT BE HANDLED:
+[ ] One cannot introduce a state after an event sequence.
+[ ] If a state has no transitions it ends up with: def transition(self, event): match event:
+[ ] __epsilon when a state occurs after an event sequence
+
+--- CONSTRUCTS IN GRAMMAR KNOWN TO NOT BE HANDLED ---
 
 [ ] include
 [ ] Python code in monitor
 [ ] Statements
 
-OTHER THINGS
+--- OTHER THINGS ---
 
 [ ] Visualization, perhaps graphical input
 [ ] Parameters to monitors, are other monitors parameters?, do we make instances of monitors
