@@ -61,68 +61,68 @@ class DesugarInlineToExplicit(Visitor):
         return env2
 
     def collect_free_vars(
-        self, body: StateBody, env: Dict[str, TypeKind]
+            self, body: StateBody, env: Dict[str, TypeKind]
     ) -> Tuple[List[Param], List[str]]:
         """
-        Find free variable names (ValuePatName occurrences) inside inline body that are
-        not locally bound by NAME? in that body. Return (params, order).
+        Collect *free* variable names used inside an inline state's BODY that should
+        become parameters of the freshly generated explicit state.
+
+        IMPORTANT:
+          • We only collect names from *pattern arguments* (ValuePatName),
+            NOT from `if` conditions (pat.cond) or statements.
+            This prevents accidental captures like `exits` from `if (exits)`.
+          • Names bound locally by NAME? (ValuePatNameQ) are excluded.
+          • We filter out reserved/keyword-ish names and non-identifiers.
+          • Parameter types come from `env` when available; otherwise default to str.
         """
-        bound: Set[str] = set()
-        free: Set[str] = set()
+        bound: Set[str] = set()  # names introduced via NAME? in this inline body
+        free: Set[str] = set()  # candidate free names to become state params
 
-        def walk_expr(e: Optional[Expr]):
-            if e is None: return
-            if isinstance(e, Var):
-                # Treat Var occurrences as references; add if not shadowed
-                if e.name not in bound:
-                    free.add(e.name)
-            elif isinstance(e, BinOp):
-                walk_expr(e.left); walk_expr(e.right)
-            elif isinstance(e, UnOp):
-                walk_expr(e.expr)
-            elif isinstance(e, Call):
-                for a in e.args:
-                    if isinstance(a, ArgNamed): walk_expr(a.expr)
-                    elif isinstance(a, ArgPos): walk_expr(a.expr)
+        RESERVED = {
+            "if", "else", "and", "or", "not",
+            "exists", "ok", "error",
+            "True", "False", "None"
+        }
 
-        def walk_valuepat(v):
-            if isinstance(v, ValuePatName):
-                # reference to an outer/state variable
-                if v.name not in bound:
-                    free.add(v.name)
-            elif isinstance(v, ValuePatNameQ):
-                # local binding; record bound name (strip '?')
+        def see_valuepat(v: ValuePat):
+            if isinstance(v, ValuePatNameQ):
+                # Local binding (strip '?'): becomes bound, not a param
                 n = v.name[:-1] if v.name.endswith("?") else v.name
                 bound.add(n)
+            elif isinstance(v, ValuePatName):
+                # Reference to an outer name → candidate free var (unless already bound)
+                if v.name not in bound:
+                    free.add(v.name)
             # ValuePatNum/Str: ignore
 
-        def walk_pat_args(args: List[ArgPat]):
+        def see_pat_args(args: List[ArgPat]):
             for ap in args or []:
                 if isinstance(ap, ArgPatNamed):
-                    walk_valuepat(ap.value)
+                    see_valuepat(ap.value)
                 elif isinstance(ap, ArgPatPos):
-                    walk_valuepat(ap.value)
-                # ArgPatWild: nothing
+                    see_valuepat(ap.value)
+                # ArgPatWild: ignore
 
-        # walk the inline state's body
+        # Walk only pattern arguments of transitions inside the inline body.
+        # DO NOT inspect tr.pat.cond or statements — those can reference arbitrary
+        # flags/expressions and must not auto-become state parameters.
         for tr in body.transitions:
             if isinstance(tr, Case):
-                # bindings introduced here
-                walk_pat_args(tr.pat.args)
-                walk_expr(tr.pat.cond)
-                # statements (assert/call/emit) – skip or add Var scan if you need it
-                # nested targets: they may include further inlined states; we don't
-                # count their free vars here; those will be handled when we process them.
+                see_pat_args(tr.pat.args)
             elif isinstance(tr, Veto):
-                walk_pat_args(tr.pat.args)
+                see_pat_args(tr.pat.args)
 
-        # Order params deterministically (preserve appearance order if desired)
+        # Determine deterministic order:
+        #  - keep variables that already exist in env in env-order first,
+        #  - then the rest alphabetically.
         ordered = [n for n in env.keys() if n in free] + [n for n in sorted(free) if n not in env]
-        # Build Param list with types from env (fallback str)
-        params: List[Param] = [
-            Param(name=n, typ=env.get(n, TypeKind.STR)) for n in ordered
-        ]
-        return params, ordered
+
+        # Filter out obviously invalid names (keywords, non-identifiers, etc.)
+        filtered = [n for n in ordered if n.isidentifier() and n not in RESERVED]
+
+        # Build Param list with types from env (fallback to str)
+        params: List[Param] = [Param(name=n, typ=env.get(n, TypeKind.STR)) for n in filtered]
+        return params, filtered
 
     # ---- main entry for a program/monitor ----------------------------------
 

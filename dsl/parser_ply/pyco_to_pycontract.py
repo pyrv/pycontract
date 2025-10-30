@@ -249,6 +249,31 @@ class PyContractTranslator(Visitor):
         self.emit("return pc.error()")
         self.indent -= 1
 
+    def _free_vars_expr(self, e):
+        """Return names of variables used in an expression (for filtering)."""
+        if e is None:
+            return set()
+        if isinstance(e, Var):
+            return {e.name}
+        if isinstance(e, BinOp):
+            return self._free_vars_expr(e.left) | self._free_vars_expr(e.right)
+        if isinstance(e, UnOp):
+            return self._free_vars_expr(e.expr)
+        if isinstance(e, Call):
+            out = set()
+            for a in e.args:
+                if isinstance(a, ArgNamed):
+                    out |= self._free_vars_expr(a.expr)
+                elif isinstance(a, ArgPos):
+                    out |= self._free_vars_expr(a.expr)
+            return out
+        if isinstance(e, Exists):
+            out = {e.var}
+            if e.where:
+                out |= self._free_vars_expr(e.where)
+            return out
+        return set()
+
     def expr_str(self, e):
         if isinstance(e, Var):
             return f"self.{e.name}" if self.in_state else e.name
@@ -329,12 +354,24 @@ class PyContractTranslator(Visitor):
 
             self.indent += 1
 
-            # --- fields (only for non-initial states) ---
-            if not s.initial:
-                for p in s.params or []:
-                    self.emit(f"{p.name}: {p.typ.value}")
-                if s.params:
-                    self.emit("")
+            # --- fields ---
+            declared = {p.name for p in (s.params or [])}
+
+            # (optional) collect names used in expressions for filtering
+            used = set()
+            if s.body:
+                for tr in s.body.transitions:
+                    if isinstance(tr, Case) and tr.pat.cond:
+                        used |= self._free_vars_expr(tr.pat.cond)
+
+            # ✅ keep only declared params
+            fields = sorted(declared & used) if declared else sorted(declared)
+
+            # emit declared fields only
+            for p in s.params or []:
+                self.emit(f"{p.name}: {p.typ.value}")
+            if s.params:
+                self.emit("")
 
             # --- transition method ---
             self.emit("def transition(self, event):")
@@ -349,3 +386,4 @@ class PyContractTranslator(Visitor):
 
         finally:
             self.in_state = old
+

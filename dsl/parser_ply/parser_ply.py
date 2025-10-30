@@ -374,9 +374,9 @@ def p_valuepat_str(p):
     p[0] = ValuePatStr(value=p[1])
 
 def p_condition_opt(p):
-    """condition_opt : IF expr
+    """condition_opt : IF '(' expr ')'
                      | """
-    p[0] = p[2] if len(p) == 3 else None
+    p[0] = p[3] if len(p) == 5 else None
 
 def p_statements_many(p):
     """statements : statements statement"""
@@ -621,9 +621,9 @@ def p_argumentpats_exists_opt(p):
     p[0] = p[2] if len(p) == 4 else []
 
 def p_where_opt(p):
-    """where_opt : WHERE expr
+    """where_opt : WHERE '(' expr ')'
                  | """
-    p[0] = p[2] if len(p) == 3 else None
+    p[0] = p[3] if len(p) == 5 else None
 
 def p_expr_call(p):
     """expr : func_call"""

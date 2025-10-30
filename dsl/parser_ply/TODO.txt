@@ -1,13 +1,16 @@
 
 TODO for Pyco
 
+[ ] One cannot introduce a state after an event sequence.
+[ ] If a state has no transitions it ends up with: def transition(self, event): match event:
+[ ] __epsilon when a state occurs after an event sequence
+
+--- ISSUES ---
+
 [>] Wellformedness check
-
+[ ] Command line version, CSV file processing, rows
 [ ] Testing
-
-[ ] Visualization, perhaps graphical input
-[ ] Command line version
-[ ] CSV file processing, rows
+[ ] Documentation
 
 --- WAIT ---
 
@@ -17,8 +20,9 @@ CONSTRUCTS IN GRAMMAR KNOWN TO NOT BE HANDLED:
 [ ] Python code in monitor
 [ ] Statements
 
-OTHER THINGS:
+OTHER THINGS
 
+[ ] Visualization, perhaps graphical input
 [ ] Parameters to monitors, are other monitors parameters?, do we make instances of monitors
 [ ] Reacting to errors .. callbacks?
 [ ] Real time
@@ -60,24 +64,30 @@ OTHER THINGS:
 WELLFORMEDNESS CHECK:
 =====================
 
-[x] No duplicate event names (in grouped or ungrouped form)
-[x] No duplicate argument names
-[x] Monitor names are unique
+[x] no duplicate event names (in grouped or ungrouped form)
+[x] no duplicate argument names
+[x] no duplicate monitor names
 [x] each referenced event name (in patterns, vetoes, sequences, etc.) exists
-[x] Variables used in patterns are properly bound (e.g., n used only if n? appeared earlier in the scope)
-[x] Named argument matches a declared event field
-[x] Positional args match the event arity
+[x] variables used in patterns are properly bound (e.g., n used only if n? appeared earlier in the scope)
+[x] named argument matches a declared event field
 [x] initial states must have no parameters
-[x] State names unique within a monitor
-[x] References to states (via TgtStateInstance) exist
-[x] No undefined variables in name= expressions (unless bound by ?)
+[x] state names unique within a monitor
+[x] references to states (via TgtStateInstance) exist
+[x] no undefined variables in name= expressions (unless bound by ?)
+[x] no semi-uncreachable states (must be refereneced from somewhere)
+[x] Variable shadowing	Warn if a new n? hides a parameter of the same name.
+[x] positional args match the event arity
+[x] target states should use the right parameter names
+[x] no mixing named and positional arguments
+[x] exists expressions
+[>] type checking, ensure that variables bound by n? and reused later match the declared types of event fields.
 
-[ ] include refers to exisiting monitors
+CAN WAIT:
+
+[ ] refine the reachability analysis to follow transitive reachability (like a graph traversal)
+[ ] include refers to existing monitors
 [ ] monitor parameters different
 [ ] type param matches events in transitions
-[ ] target states should exist and have the right parameter names, check types also
-[ ] match types should be correct
-[ ] if conditions, states should exist variables should exist and with correct types
-[ ] vstatements: assert expressions wellformed, NAME! should exist, event well formed
-[ ] event sequences: check events
-[ ] expressions
+
+
+

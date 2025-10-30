@@ -34,6 +34,23 @@ monitor M1 {
 }
 '''
 
+"""
+from parser_ply import parse
+from wellformedness_checker import WellformednessChecker
+
+prog = parse(open("my_monitor.pyco").read())
+checker = WellformednessChecker()
+errors = checker.check(prog)
+
+if errors:
+    print("Errors:")
+    for e in errors:
+        print("  -", e)
+else:
+    print("✅ Specification is well-formed")
+
+"""
+
 if __name__ == '__main__':
     prog = parse(text)
     mon = prog.monitors[0]
