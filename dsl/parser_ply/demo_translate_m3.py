@@ -27,7 +27,7 @@ monitor M3 {
   case Command(name = n?, number = x?): [
     ?DispatchFailure(name=n, number=x)
     !DispatchFailure(name=n, number=x)
-     Dispatch(name=n, number=n) if (exits) 
+     Dispatch(name=n, number=n)
     !ExecutionFailure(name=n, number=x)
      Complete(name=n, number=n)
     !Complete(name=n, number=n)
@@ -47,14 +47,5 @@ if __name__ == "__main__":
             print("  -", e)
     else:
         print("✅ Specification is well-formed")
-    code = PyContractTranslator().translate_program(prog)
-    print(code)
-
-"""
-if __name__ == "__main__":
-    prog = parse(text)
-    prog = DesugarSeqToInline().transform_program(prog)
-    prog = DesugarInlineToExplicit(prog).transform_program(prog)
-    code = PyContractTranslator().translate_program(prog)
-    print(code)
-"""
+        code = PyContractTranslator().translate_program(prog)
+        print(code)
