@@ -1,6 +1,6 @@
 # demo_translate.py
-from parser_ply import parse
-from pyco_to_pycontract import PyContractTranslator
+from dsl.parser_ply.parser_ply import parse
+from dsl.parser_ply.pyco_to_pycontract import PyContractTranslator
 
 text = r'''
 events Exec {

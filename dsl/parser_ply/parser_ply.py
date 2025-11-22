@@ -10,7 +10,7 @@ from pathlib import Path
 import ply.lex as lex
 import ply.yacc as yacc
 
-from ast_nodes import *
+from dsl.parser_ply.ast_nodes import *
 
 # -----------------------------
 # Lexer

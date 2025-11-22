@@ -797,7 +797,7 @@ class Monitor:
         self.is_top_monitor: bool = True
         self.states: Set[State] = set([])
         self.states_indexed : Dict[object, Set[State]] = {}
-        self.messages: List[str] = []
+        self.messages: List[Message] = []
         self.event_count: int = 0
         self.option_show_state_event: bool = True
         self.option_print_summary: bool = True
@@ -926,7 +926,7 @@ class Monitor:
         for source_state in states:
             resulting_states = source_state.eval(event)
             if Debug.DEBUG:
-                self.debug(f'{source_state} results in {mk_string("[",", ","]", resulting_states)}')
+                self.debug(f'{source_state} => {mk_string("[",", ","]", resulting_states)}')
             transition_triggered = True
             states_to_remove.add(source_state)
             for target_state in resulting_states:

@@ -2,8 +2,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import List, Optional, Dict
 
-from visitor import Visitor
-from ast_nodes import *
+from dsl.parser_ply.visitor import Visitor
+from dsl.parser_ply.ast_nodes import *
 
 class DesugarSeqToInline(Visitor):
     """

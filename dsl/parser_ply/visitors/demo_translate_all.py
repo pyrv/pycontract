@@ -1,11 +1,8 @@
-from parser_ply import parse
-from desugar_inline_to_explicit import DesugarInlineToExplicit
-from pyco_to_pycontract import PyContractTranslator
+from dsl.parser_ply.parser_ply import parse
+from dsl.parser_ply.desugar_inline_to_explicit import DesugarInlineToExplicit
+from dsl.parser_ply.pyco_to_pycontract import PyContractTranslator
 
 text = r'''
-event Ping(time: int)
-event Pong(time: int)
-
 events Exec {
   Command(name: str, time: int, number: int)
   Dispatch(name: str, time: int, number: int)
@@ -13,6 +10,7 @@ events Exec {
   ExecutionFailure(name: str, time: int, number: int)
   Complete(name: str, time: int, number: int)
 }
+
 monitor M2 {
   case Command(name = n?, number = x?): hot {
     veto DispatchFailure(name=n, number=x)
@@ -24,10 +22,17 @@ monitor M2 {
     }
   }
 }
+
+monitor M3 {
+  case Command(name = n?, number = x?): state {
+    case Complete(name=n, number=x): ok
+  }
+}
 '''
 
 if __name__ == "__main__":
     prog = parse(text)
-    m2 = DesugarInlineToExplicit(prog).transform_program(prog)
-    code = PyContractTranslator().translate_program(m2)
+    des = DesugarInlineToExplicit(prog)
+    prog2 = des.transform_program(prog)
+    code = PyContractTranslator().translate_program(prog2)
     print(code)

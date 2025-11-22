@@ -1,0 +1,10 @@
+
+import tyco as tc
+
+spec = "..."
+
+mod = tc.Monitor(spec)
+
+m = mod.M1()
+m.eval(m.Command(1,2,3))
+

@@ -1,8 +1,8 @@
 
 # wellformedness_checker.py
 from __future__ import annotations
-from visitor import Visitor
-from ast_nodes import *
+from dsl.parser_ply.visitor import Visitor
+from dsl.parser_ply.ast_nodes import *
 
 
 class WellformednessChecker(Visitor):

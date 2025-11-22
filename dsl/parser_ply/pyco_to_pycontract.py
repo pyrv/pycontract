@@ -1,6 +1,6 @@
 # pyco_to_pycontract.py
-from visitor import Visitor
-from ast_nodes import *
+from dsl.parser_ply.visitor import Visitor
+from dsl.parser_ply.ast_nodes import *
 import textwrap
 
 class PyContractTranslator(Visitor):
@@ -34,41 +34,28 @@ class PyContractTranslator(Visitor):
         def py_type(tk: TypeKind) -> str:
             return {"int": "int", "float": "float", "str": "str"}[tk.value]
 
+        def emit_event_sig(sig: EventSig):
+            self.emit("@dataclass")
+            self.emit(f"class {sig.name}:")
+            self.indent += 1
+            if sig.params:
+                for p in sig.params:
+                    self.emit(f"{p.name}: {py_type(p.typ)}")
+            else:
+                self.emit("pass")
+            self.indent -= 1
+            self.emit("")
+
         for ed in evdefs:
             # --- grouped events:  events Exec { Command(...) ... }
             if isinstance(ed, MultiEventDef):
-                group = ed.group
-                base_sig = ed.sigs[0]
-                self.emit("@dataclass")
-                self.emit(f"class {group}:")
-                self.indent += 1
-                if base_sig.params:
-                    for p in base_sig.params:
-                        self.emit(f"{p.name}: {py_type(p.typ)}")
-                else:
-                    self.emit("pass")
-                self.indent -= 1
-                self.emit("")
-
-                # subclasses
                 for sig in ed.sigs:
-                    self.emit("@dataclass")
-                    self.emit(f"class {sig.name}({group}): ...")
+                    emit_event_sig(sig)
                 self.emit("")
 
             # --- single event:  event Command(name: str, time: int)
             elif isinstance(ed, OneEventDef):
-                sig = ed.sig
-                self.emit("@dataclass")
-                self.emit(f"class {sig.name}:")
-                self.indent += 1
-                if sig.params:
-                    for p in sig.params:
-                        self.emit(f"{p.name}: {py_type(p.typ)}")
-                else:
-                    self.emit("pass")
-                self.indent -= 1
-                self.emit("")
+                emit_event_sig(ed.sig)
 
         self.emit("")  # blank line at end
 

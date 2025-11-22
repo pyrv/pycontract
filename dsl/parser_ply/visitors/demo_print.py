@@ -1,7 +1,7 @@
 
 # demo_print.py
-from parser_ply import parse
-from visitor import PrintVisitor
+from dsl.parser_ply.parser_ply import parse
+from dsl.parser_ply.visitor import PrintVisitor
 
 text = r'''
 events Exec {

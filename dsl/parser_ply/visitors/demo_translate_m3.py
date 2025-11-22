@@ -1,10 +1,10 @@
 from pprint import pprint
 
-from parser_ply import parse
-from wellformedness_checker import WellformednessChecker
-from desugar_seq_to_inline import DesugarSeqToInline
-from desugar_inline_to_explicit import DesugarInlineToExplicit
-from pyco_to_pycontract import PyContractTranslator
+from dsl.parser_ply.parser_ply import parse
+from dsl.parser_ply.wellformedness_checker import WellformednessChecker
+from dsl.parser_ply.desugar_seq_to_inline import DesugarSeqToInline
+from dsl.parser_ply.desugar_inline_to_explicit import DesugarInlineToExplicit
+from dsl.parser_ply.pyco_to_pycontract import PyContractTranslator
 
 text = r'''
 events Exec {
